@@ -20,6 +20,7 @@ from scipy.sparse import csr_matrix as csr
 import properties
 from discretize.tests import checkDerivative
 from discretize import TreeMesh
+from discretize.utils import volume_average
 
 from .utils import (
     setKwargs,
@@ -1577,10 +1578,7 @@ class InjectActiveCells(IdentityMap):
         return int(self.indActive.sum())
 
     def _transform(self, m):
-        if m.ndim > 1:
-            return self.P * m + self.valInactive[:, None]
-        else:
-            return self.P * m + self.valInactive
+        return self.P * m + self.valInactive
 
     def inverse(self, D):
         return self.P.T * D
@@ -3348,10 +3346,10 @@ class TileMap(IdentityMap):
             Local TreeMesh for the simulation.
         """
         kwargs.pop("mesh", None)
-        if global_mesh._meshType != "TREE":
-            raise ValueError("global_mesh must be a TreeMesh")
-        if local_mesh._meshType != "TREE":
-            raise ValueError("local_mesh must be a TreeMesh")
+        # if global_mesh._meshType != "TREE":
+        #     raise ValueError("global_mesh must be a TreeMesh")
+        # if local_mesh._meshType != "TREE":
+        #     raise ValueError("local_mesh must be a TreeMesh")
         super().__init__(**kwargs)
         self._global_mesh = global_mesh
         self._global_active = global_active
@@ -3416,34 +3414,37 @@ class TileMap(IdentityMap):
             getattr(self, "_global_mesh", None) is not None and
             getattr(self, "_global_active", None) is not None
         ):
-
-            in_local = self.local_mesh._get_containing_cell_indexes(
-                self.global_mesh.gridCC
-            )
-            nested = (
-                self.global_mesh.cell_levels_by_index(np.arange(self.global_mesh.nC)) <
-                self.local_mesh.cell_levels_by_index(in_local)
-             ).sum()
-
-            if nested != 0:
-                print(f"TileMap warning. {nested} cells smaller in local mesh")
-
-            P = (
-                sp.csr_matrix(
-                    (self.global_mesh.cell_volumes, (in_local, np.arange(self.global_mesh.nC))),
-                    shape=(self.local_mesh.nC, self.global_mesh.nC),
+            if self.global_mesh._meshType != "TREE":
+                P = volume_average(self.global_mesh, self.local_mesh)
+                self.local_active = mkvc(np.sum(P, axis=1) > 0)
+            else:
+                in_local = self.local_mesh._get_containing_cell_indexes(
+                    self.global_mesh.gridCC
                 )
-                * speye(self.global_mesh.nC)[:, self.global_active]
-            )
-            self.local_active = mkvc(np.sum(P, axis=1) > 0)
+                nested = (
+                    self.global_mesh.cell_levels_by_index(np.arange(self.global_mesh.nC)) <
+                    self.local_mesh.cell_levels_by_index(in_local)
+                ).sum()
 
-            # Remove cells with inactive in global
-            if self._enforce_active:
-                self.local_active[
-                    self.local_mesh._get_containing_cell_indexes(
-                        self.global_mesh.gridCC[self.global_active == False, :]
+                if nested != 0:
+                    print(f"TileMap warning. {nested} cells smaller in local mesh")
+
+                P = (
+                    sp.csr_matrix(
+                        (self.global_mesh.cell_volumes, (in_local, np.arange(self.global_mesh.nC))),
+                        shape=(self.local_mesh.nC, self.global_mesh.nC),
                     )
-                ] = False
+                    * speye(self.global_mesh.nC)[:, self.global_active]
+                )
+                self.local_active = mkvc(np.sum(P, axis=1) > 0)
+
+                # Remove cells with inactive in global
+                if self._enforce_active:
+                    self.local_active[
+                        self.local_mesh._get_containing_cell_indexes(
+                            self.global_mesh.gridCC[self.global_active == False, :]
+                        )
+                    ] = False
 
             P = P[self.local_active, :]
 
