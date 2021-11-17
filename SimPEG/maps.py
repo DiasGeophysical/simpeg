@@ -3346,10 +3346,7 @@ class TileMap(IdentityMap):
             Local TreeMesh for the simulation.
         """
         kwargs.pop("mesh", None)
-        # if global_mesh._meshType != "TREE":
-        #     raise ValueError("global_mesh must be a TreeMesh")
-        # if local_mesh._meshType != "TREE":
-        #     raise ValueError("local_mesh must be a TreeMesh")
+
         super().__init__(**kwargs)
         self._global_mesh = global_mesh
         self._global_active = global_active
