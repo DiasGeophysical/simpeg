@@ -1,6 +1,7 @@
 from __future__ import print_function
 import numpy as np
 from scipy.sparse import linalg
+from sksparse.cholmod import cholesky
 from .mat_utils import mkvc
 import warnings
 import inspect
@@ -17,6 +18,40 @@ def _checkAccuracy(A, b, X, accuracyTol):
         )
         print(msg)
         warnings.warn(msg, RuntimeWarning)
+
+
+def SolverWrapCHOLMOD(fun, factorize=True, name=None):
+    """
+    crude choldmod
+    """
+    def __init__(self, A, **kwargs):
+        self.A = A.tocsc()
+
+        if factorize:
+            self.solver = fun(self.A, ordering_method="metis")
+
+    def __mul__(self, b):
+        if type(b) is not np.ndarray:
+            raise TypeError("Can only multiply by a numpy array.")
+
+        return self.solver(b)
+
+    def __matmul__(self, other):
+        return self * other
+
+    def clean(self):
+        pass
+
+    return type(
+        name if name is not None else fun.__name__,
+        (object,),
+        {
+            "__init__": __init__,
+            "clean": clean,
+            "__mul__": __mul__,
+            "__matmul__": __matmul__,
+        },
+    )
 
 
 def SolverWrapD(fun, factorize=True, checkAccuracy=True, accuracyTol=1e-6, name=None):
@@ -199,6 +234,7 @@ def SolverWrapI(fun, checkAccuracy=True, accuracyTol=1e-5, name=None):
 
 
 Solver = SolverWrapD(linalg.spsolve, factorize=False, name="Solver")
+SolverCHOLMOD = SolverWrapCHOLMOD(cholesky, name="CHOLMOD")
 SolverLU = SolverWrapD(linalg.splu, factorize=True, name="SolverLU")
 SolverCG = SolverWrapI(linalg.cg, name="SolverCG")
 SolverBiCG = SolverWrapI(linalg.bicgstab, name="SolverBiCG")
