@@ -1,7 +1,6 @@
 from ..simulation import BaseSimulation as Sim
 from dask.distributed import get_client, Future
 from dask import array, delayed
-from dask.delayed import Delayed
 import warnings
 from ..data import SyntheticData
 import numpy as np
@@ -70,13 +69,8 @@ def make_synthetic_data(
     #     if isinstance(f, Delayed):
     #         f = f.compute()
 
-    # client = get_client()
-    dpred = self.dpred(m, f=f)
-    if isinstance(dpred, Delayed):
-        client = get_client()
-        dclean = client.compute(dpred, workers=self.workers).result()
-    else:
-        dclean = np.asarray(dpred)
+    client = get_client()
+    dclean = client.compute(self.dpred(m, f=f), workers=self.workers).result()
 
     if add_noise is True:
         std = relative_error * abs(dclean) + noise_floor

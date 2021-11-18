@@ -1,17 +1,17 @@
 try:
-    import SimPEG.dask.simulation
-    import SimPEG.dask.electromagnetics.static.resistivity.simulation
-    import SimPEG.dask.electromagnetics.static.resistivity.receivers
-    import SimPEG.dask.electromagnetics.static.induced_polarization.simulation
-    import SimPEG.dask.electromagnetics.frequency_domain.simulation
-    import SimPEG.dask.potential_fields.base
-    import SimPEG.dask.potential_fields.gravity.simulation
-    import SimPEG.dask.potential_fields.magnetics.simulation
-    import SimPEG.dask.objective_function
-    import SimPEG.dask.data_misfit
-    import SimPEG.dask.optimization
-    import SimPEG.dask.inverse_problem
+    import SimPEG.dias.simulation
+    import SimPEG.dias.electromagnetics.static.resistivity.simulation
+    import SimPEG.dias.electromagnetics.static.resistivity.receivers
+    import SimPEG.dias.electromagnetics.static.induced_polarization.simulation
+    import SimPEG.dias.electromagnetics.frequency_domain.simulation
+    # import SimPEG.dias.potential_fields.base
+    # import SimPEG.dias.potential_fields.gravity.simulation
+    # import SimPEG.dias.potential_fields.magnetics.simulation
+    import SimPEG.dias.objective_function
+    import SimPEG.dias.data_misfit
+    import SimPEG.dias.optimization
+    import SimPEG.dias.inverse_problem
 
 except ImportError as err:
-    print("unable to load dask operations")
+    print("unable to load dias operations")
     print(err)

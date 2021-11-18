@@ -3567,36 +3567,36 @@ class PolynomialPetroClusterMap(IdentityMap):
 ###############################################################################
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class FullMap(SurjectFull):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class Vertical1DMap(SurjectVertical1D):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class Map2Dto3D(Surject2Dto3D):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class ActiveCells(InjectActiveCells):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class CircleMap(ParametricCircleMap):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class PolyMap(ParametricPolyMap):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class SplineMap(ParametricSplineMap):
     pass

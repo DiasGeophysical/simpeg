@@ -6,34 +6,34 @@ import shutil
 import numpy as np
 from dask.distributed import Future, get_client, Client
 
-@property
-def client(self):
-    if getattr(self, '_client', None) is None:
-        self._client = get_client()
+# @property
+# def client(self):
+#     if getattr(self, '_client', None) is None:
+#         self._client = get_client()
 
-    return self._client
-
-
-@client.setter
-def client(self, client):
-    assert isinstance(client, Client)
-    self._client = client
+#     return self._client
 
 
-BaseObjectiveFunction.client = client
+# @client.setter
+# def client(self, client):
+#     assert isinstance(client, Client)
+#     self._client = client
 
 
-@property
-def workers(self):
-    return self._workers
+# BaseObjectiveFunction.client = client
 
 
-@workers.setter
-def workers(self, workers):
-    self._workers = workers
+# @property
+# def workers(self):
+#     return self._workers
 
 
-BaseObjectiveFunction.workers = workers
+# @workers.setter
+# def workers(self, workers):
+#     self._workers = workers
+
+
+# BaseObjectiveFunction.workers = workers
 
 
 def dask_call(self, m, f=None):
@@ -74,7 +74,7 @@ def dask_call(self, m, f=None):
 ComboObjectiveFunction.__call__ = dask_call
 
 
-def dask_deriv(self, m, f=None):
+def dask_deriv(self, residual):
     """
     First derivative of the composite objective function is the sum of the
     derivatives of each objective function in the list, weighted by their
@@ -93,9 +93,9 @@ def dask_deriv(self, m, f=None):
         else:
 
             if f is not None and objfct._has_fields:
-                fct = objfct.deriv(m, f=f[i])
+                fct = objfct.deriv(residual)
             else:
-                fct = objfct.deriv(m)
+                fct = objfct.deriv(residual)
 
             if isinstance(fct, Future):
                 future = self.client.compute(
@@ -122,7 +122,7 @@ def dask_deriv(self, m, f=None):
 ComboObjectiveFunction.deriv = dask_deriv
 
 
-def dask_deriv2(self, m, v=None, f=None):
+def dask_deriv2(self, v=None):
     """
     Second derivative of the composite objective function is the sum of the
     second derivatives of each objective function in the list, weighted by
@@ -140,7 +140,7 @@ def dask_deriv2(self, m, v=None, f=None):
         if multiplier == 0.0:  # don't evaluate the fct
             continue
         else:
-            fct = objfct.deriv2(m, v)
+            fct = objfct.deriv2(v)
 
             if isinstance(fct, Future):
                 future = self.client.submit(da.multiply, multiplier, fct)

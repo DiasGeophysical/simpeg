@@ -132,15 +132,11 @@ def dask_getJtJdiag(self, m, W=None):
 Sim.getJtJdiag = dask_getJtJdiag
 
 
-def dask_Jvec(self, m, v):
+def dask_Jvec(self, v):
     """
         Compute sensitivity matrix (J) and vector (v) product.
     """
-    self.model = m
-    # if isinstance(self.Jmatrix, Future):
-    #     self.Jmatrix  # Wait to finish
 
-    # return da.dot(self.Jmatrix, v).astype(np.float32)
     # create the request stream
     jvec_requests = {}
     jvec_requests["request"] = 'jvec'
@@ -168,15 +164,10 @@ def dask_Jvec(self, m, v):
 Sim.Jvec = dask_Jvec
 
 
-def dask_Jtvec(self, m, v):
+def dask_Jtvec(self, v):
     """
         Compute adjoint sensitivity matrix (J^T) and vector (v) product.
     """
-    self.model = m
-    # if isinstance(self.Jmatrix, Future):
-    #     self.Jmatrix  # Wait to finish
-
-    # return da.dot(v, self.Jmatrix).astype(np.float32)
 
     # create the request stream
     jtvec_requests = {}
@@ -278,7 +269,6 @@ Sim.compute_J = compute_J
 
 
 # This could technically be handled by dask.simulation, but doesn't seem to register
-@dask.delayed
 def dask_dpred(self, m=None, f=None, compute_J=False):
     """
     dpred(m, f=None)
@@ -309,6 +299,8 @@ def dask_dpred(self, m=None, f=None, compute_J=False):
     worker_threads = []
     results = [None] * len(worker_threads)
     cnt_host = 0
+
+    # create a thread for each worker
     for address in self.cluster_worker_ids:
         p = Thread(target=workerRequest, args=(results, dpred_requests, address, cnt_host))
         p.start()

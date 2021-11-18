@@ -6,6 +6,7 @@ import shutil
 import numpy as np
 from dask.distributed import Future, get_client, Client
 
+
 @property
 def client(self):
     if getattr(self, '_client', None) is None:
@@ -83,7 +84,7 @@ def dask_deriv(self, m, f=None):
     :param numpy.ndarray m: model
     :param SimPEG.Fields f: Fields object (if applicable)
     """
-
+    print("\n\n In obj first? \n\n")
     g = []
     multipliers = []
     for i, phi in enumerate(self):
@@ -140,10 +141,17 @@ def dask_deriv2(self, m, v=None, f=None):
         if multiplier == 0.0:  # don't evaluate the fct
             continue
         else:
+
+            # if f is not None and objfct._has_fields:
+            #     fct = objfct.deriv2(m, v, f=f[i])
+            # else:
+                # print('[info] doing derive no fields')
             fct = objfct.deriv2(m, v)
 
             if isinstance(fct, Future):
-                future = self.client.submit(da.multiply, multiplier, fct)
+                future = self.client.compute(
+                    self.client.submit(da.multiply, multiplier, fct)
+                )
                 H += [future]
             else:
                 H += [fct]
@@ -154,8 +162,7 @@ def dask_deriv2(self, m, v=None, f=None):
         big_future = self.client.submit(
             da.sum, self.client.submit(da.vstack, H), axis=0
         ).result()
-
-        return np.asarray(big_future)
+        return self.client.compute(big_future).result()
 
     else:
         phi_deriv2 = 0
