@@ -3412,7 +3412,8 @@ class TileMap(IdentityMap):
             getattr(self, "_global_active", None) is not None
         ):
             if self.global_mesh._meshType != "TREE":
-                P = volume_average(self.global_mesh, self.local_mesh)
+                P_ = volume_average(self.global_mesh, self.local_mesh)
+                P = (P_ * speye(self.global_mesh.nC)[:, self.global_active])
                 self.local_active = mkvc(np.sum(P, axis=1) > 0)
             else:
                 in_local = self.local_mesh._get_containing_cell_indexes(
