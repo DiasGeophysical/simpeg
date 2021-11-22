@@ -10,6 +10,12 @@ import zarr
 import os
 import shutil
 import numcodecs
+import json
+from threading import Thread, local 
+import socket
+import select
+import struct
+import time
 
 numcodecs.blosc.use_threads = False
 
@@ -17,7 +23,7 @@ Sim.sensitivity_path = './sensitivity/'
 Sim.cluster_worker_ids = []
 
 
-def workerRequest(outputs,liteSim,host, index):
+def workerRequest(outputs, simlite, host, index):
     """
         A basic method for handling worker communications
     """
@@ -35,7 +41,7 @@ def workerRequest(outputs,liteSim,host, index):
     # connect to remote host
     try :
         s.connect((host.split(":")[0], int(host.split(":")[1])))
-    
+
         # send that data
         s.sendall(msg)
 
@@ -59,7 +65,7 @@ def workerRequest(outputs,liteSim,host, index):
                     
                     # check what came back from server
                     else :
-                        print(data.decode('utf-8'))
+                        print("rx data and checking: ", data.decode('utf-8')[:10])
                         
                         # check if initialization is confirmed
                         if "init" in data.decode('utf-8'):
@@ -72,15 +78,32 @@ def workerRequest(outputs,liteSim,host, index):
                                 outputs[index] = server_response["init"]
                         
                         # check if predicted data is being sent back
-                        elif "predicted" in data.decode('utf-8'):                    
+                        elif "residual" in data.decode('utf-8'):                    
+                            server_response = json.loads(data.decode('utf-8'))
+
+                            # assign the data
+                            outputs[index] = np.asarray(server_response["residual"])
+                            listening = False
+                            print("\n\n Assigned residuals to outputs")
+
+                        # check if jvec data is being sent back
+                        elif "jvec" in data.decode('utf-8'):                    
                             server_response = json.loads(data.decode('utf-8'))
                             
                             # assign the data
-                            outputs[index] = np.asarray(server_response["predicted"])
+                            outputs[index] = np.asarray(server_response["jvec"])
                             listening = False
-        
-        # close the socket
-        s.close()
+
+                        # check if jvec data is being sent back
+                        elif "jtvec" in data.decode('utf-8'):                    
+                            server_response = json.loads(data.decode('utf-8'))
+                            
+                            # assign the data
+                            outputs[index] = np.asarray(server_response["jtvec"])
+                            listening = False
+            
+            # close the socket
+            s.close()
 
     except:
         print("connection to worker failed")
@@ -88,7 +111,7 @@ def workerRequest(outputs,liteSim,host, index):
 Sim.worker = workerRequest
 
 
-def dask_fields(self, m=None, return_Ainv=False):
+def dias_fields(self, m=None, return_Ainv=False):
     if m is not None:
         self.model = m
 
@@ -108,10 +131,10 @@ def dask_fields(self, m=None, return_Ainv=False):
         return f, None
 
 
-Sim.fields = dask_fields
+Sim.fields = dias_fields
 
 
-def dask_getJtJdiag(self, m, W=None):
+def dias_getJtJdiag(self, m, W=None):
     """
         Return the diagonal of JtJ
     """
@@ -129,10 +152,10 @@ def dask_getJtJdiag(self, m, W=None):
     return self.gtgdiag
 
 
-Sim.getJtJdiag = dask_getJtJdiag
+Sim.getJtJdiag = dias_getJtJdiag
 
 
-def dask_Jvec(self, v):
+def dias_Jvec(self, v):
     """
         Compute sensitivity matrix (J) and vector (v) product.
     """
@@ -141,7 +164,7 @@ def dask_Jvec(self, v):
     jvec_requests = {}
     jvec_requests["request"] = 'jvec'
     jvec_requests["vector"] = v.tolist()
-    
+    tc = time.time()
     # get predicted data from workers
     worker_threads = []
     results = [None] * len(worker_threads)
@@ -156,15 +179,16 @@ def dask_Jvec(self, v):
     for thread_ in worker_threads:
         print("joining .......................")
         thread_.join()
+        print(f"[INFO] thread completed in: {time.time()-tc} sec")
     print("joining complete")
     # contruct the predicted data vector
     data = np.hstack(results)
 
 
-Sim.Jvec = dask_Jvec
+Sim.Jvec = dias_Jvec
 
 
-def dask_Jtvec(self, v):
+def dias_Jtvec(self, v):
     """
         Compute adjoint sensitivity matrix (J^T) and vector (v) product.
     """
@@ -173,7 +197,7 @@ def dask_Jtvec(self, v):
     jtvec_requests = {}
     jtvec_requests["request"] = 'jtvec'
     jvec_requests["vector"] = v.tolist()
-
+    tc = time.time()
     # get predicted data from workers
     worker_threads = []
     results = [None] * len(worker_threads)
@@ -188,12 +212,13 @@ def dask_Jtvec(self, v):
     for thread_ in worker_threads:
         print("joining .......................")
         thread_.join()
+        print(f"[INFO] thread completed in: {time.time()-tc} sec")
 
     # contruct the predicted data vector
-    data = np.hstack(results)
+    data = np.sum(np.vstack(results), axis=0)
 
 
-Sim.Jtvec = dask_Jtvec
+Sim.Jtvec = dias_Jtvec
 
 
 def compute_J(self, f=None, Ainv=None):
@@ -269,7 +294,7 @@ Sim.compute_J = compute_J
 
 
 # This could technically be handled by dask.simulation, but doesn't seem to register
-def dask_dpred(self, m=None, f=None, compute_J=False):
+def dias_dpred_call(self, m=None, f=None, compute_J=False):
     """
     dpred(m, f=None)
     Create the projected data from a model.
@@ -288,7 +313,7 @@ def dask_dpred(self, m=None, f=None, compute_J=False):
             "data. Please set the survey for the simulation: "
             "simulation.survey = survey"
         )
-
+    tc = time.time()
     # create the request stream
     dpred_requests = {}
     dpred_requests["request"] = 'dpred'
@@ -311,6 +336,7 @@ def dask_dpred(self, m=None, f=None, compute_J=False):
     for thread_ in worker_threads:
         print("joining .......................")
         thread_.join()
+        print(f"[INFO] thread completed in: {time.time()-tc} sec")
 
     # contruct the predicted data vector
     data = np.hstack(results)
@@ -318,7 +344,47 @@ def dask_dpred(self, m=None, f=None, compute_J=False):
     return mkvc(data)
 
 
-Sim.dpred = dask_dpred
+Sim.dpred = dias_dpred_call
+
+
+def dias_dpred(self, m=None, f=None, compute_J=False):
+        """
+        dpred(m, f=None)
+        Create the projected data from a model.
+        The fields, f, (if provided) will be used for the predicted data
+        instead of recalculating the fields (which may be expensive!).
+
+        .. math::
+
+            d_\\text{pred} = P(f(m))
+
+        Where P is a projection of the fields onto the data space.
+        """
+
+        if self.survey is None:
+            raise AttributeError(
+                "The survey has not yet been set and is required to compute "
+                "data. Please set the survey for the simulation: "
+                "simulation.survey = survey"
+            )
+
+        if f is None:
+            if m is None:
+                m = self.model
+            f, Ainv = self.dias_fields(m, return_Ainv=compute_J)
+
+        data = Data(self.survey)
+        for src in self.survey.source_list:
+            for rx in src.receiver_list:
+                data[src, rx] = rx.eval(src, self.mesh, f)
+
+        if compute_J:
+            Jmatrix = self.compute_J(f=f, Ainv=Ainv)
+            return (mkvc(data), Jmatrix)
+
+        return mkvc(data), f
+
+Sim.dias_dpred = dias_dpred
 
 
 def dask_getSourceTerm(self):

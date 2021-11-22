@@ -73,21 +73,13 @@ class BasePFSimulation(LinearSimulation):
 
     def linear_operator(self):
 
-        self.nC = self.model_map.shape[0]
+        self.nC = self.modelMap.shape[0]
 
         components = np.array(list(self.survey.components.keys()))
         active_components = np.hstack(
             [np.c_[values] for values in self.survey.components.values()]
         ).tolist()
         nD = self.survey.nD
-
-        Xn, Yn, Zn = self.Xn, self.Yn, self.Zn
-        min_hx, min_hy = self.mesh.hx.min(), self.mesh.hy.min()
-
-        if getattr(self.mesh, "hz", None) is None:
-            min_hz = np.min([min_hx, min_hy])
-        else:
-            min_hz = self.mesh.hz.min()
 
         if self.store_sensitivities == "disk":
             sens_name = self.sensitivity_path + "sensitivity.npy"
@@ -102,7 +94,7 @@ class BasePFSimulation(LinearSimulation):
         if self.store_sensitivities != "forward_only":
             kernel = np.vstack(
                 [
-                    self.evaluate_integral(Xn, Yn, Zn, min_hx, min_hy, min_hz, receiver, components[component])
+                    self.evaluate_integral(receiver, components[component])
                     for receiver, component in zip(
                         self.survey.receiver_locations.tolist(), active_components
                     )
@@ -111,7 +103,7 @@ class BasePFSimulation(LinearSimulation):
         else:
             kernel = np.hstack(
                 [
-                    self.evaluate_integral(Xn, Yn, Zn, min_hx, min_hy, min_hz, receiver, components[component]).dot(
+                    self.evaluate_integral(receiver, components[component]).dot(
                         self.model
                     )
                     for receiver, component in zip(
@@ -149,21 +141,22 @@ class BasePFSimulation(LinearSimulation):
     @property
     def forwardOnly(self):
         """The forwardOnly property has been deprecated. Please set the store_sensitivites
-        property instead. This will be removed in version 0.16.0 of SimPEG
+        property instead. This will be removed in version 0.15.0 of SimPEG
         """
         warnings.warn(
             "The forwardOnly property has been deprecated. Please set the store_sensitivites "
-            "property instead. This will be removed in version 0.16.0 of SimPEG",
-            FutureWarning,
+            "property instead. This will be removed in version 0.15.0 of SimPEG",
+            DeprecationWarning,
         )
         return self.store_sensitivities == "forward_only"
 
     @forwardOnly.setter
     def forwardOnly(self, other):
         warnings.warn(
-            "The forwardOnly property has been deprecated. Please set the store_sensitivites "
-            "property instead. This will be removed in version 0.16.0 of SimPEG",
-            FutureWarning,
+            "Do not set parallelized. If interested, try out "
+            "loading dask for parallelism by doing ``import SimPEG.dask``. This will "
+            "be removed in version 0.15.0 of SimPEG",
+            DeprecationWarning,
         )
         if self.other:
             self.store_sensitivities = "forward_only"
@@ -172,13 +165,13 @@ class BasePFSimulation(LinearSimulation):
     def parallelized(self):
         """The parallelized property has been removed. If interested, try out
         loading dask for parallelism by doing ``import SimPEG.dask``. This will
-        be removed in version 0.16.0 of SimPEG
+        be removed in version 0.15.0 of SimPEG
         """
         warnings.warn(
             "parallelized has been deprecated. If interested, try out "
             "loading dask for parallelism by doing ``import SimPEG.dask``. "
-            "This will be removed in version 0.16.0 of SimPEG",
-            FutureWarning,
+            "This will be removed in version 0.15.0 of SimPEG",
+            DeprecationWarning,
         )
         return False
 
@@ -187,21 +180,21 @@ class BasePFSimulation(LinearSimulation):
         warnings.warn(
             "Do not set parallelized. If interested, try out "
             "loading dask for parallelism by doing ``import SimPEG.dask``. This will"
-            "be removed in version 0.16.0 of SimPEG",
-            FutureWarning,
+            "be removed in version 0.15.0 of SimPEG",
+            DeprecationWarning,
         )
 
     @property
     def n_cpu(self):
         """The parallelized property has been removed. If interested, try out
         loading dask for parallelism by doing ``import SimPEG.dask``. This will
-        be removed in version 0.16.0 of SimPEG
+        be removed in version 0.15.0 of SimPEG
         """
         warnings.warn(
             "n_cpu has been deprecated. If interested, try out "
             "loading dask for parallelism by doing ``import SimPEG.dask``. "
-            "This will be removed in version 0.16.0 of SimPEG",
-            FutureWarning,
+            "This will be removed in version 0.15.0 of SimPEG",
+            DeprecationWarning,
         )
         return 1
 
@@ -210,8 +203,8 @@ class BasePFSimulation(LinearSimulation):
         warnings.warn(
             "Do not set n_cpu. If interested, try out "
             "loading dask for parallelism by doing ``import SimPEG.dask``. This will"
-            "be removed in version 0.16.0 of SimPEG",
-            FutureWarning,
+            "be removed in version 0.15.0 of SimPEG",
+            DeprecationWarning,
         )
 
 

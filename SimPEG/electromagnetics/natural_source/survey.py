@@ -11,7 +11,6 @@ from .receivers import Point3DImpedance, Point3DTipper
 from .utils.plot_utils import DataNSEMPlotMethods
 import properties
 
-
 #########
 # Survey
 #########
@@ -36,7 +35,7 @@ import properties
 
 #         _freqDict = {}
 #         for src in srcList:
-#             if src.frequency not in _freqDict:
+#             if src.freq not in _freqDict:
 #                 _freqDict[src.freq] = []
 #             _freqDict[src.freq] += [src]
 
@@ -143,7 +142,7 @@ class Data(BaseData, DataNSEMPlotMethods):
                 locs = np.hstack((np.array([[0.0]]), locs))
             tArrRec = np.concatenate(
                 (
-                    src.frequency * np.ones((locs.shape[0], 1)),
+                    src.freq * np.ones((locs.shape[0], 1)),
                     locs,
                     np.nan * np.ones((locs.shape[0], 12)),
                 ),
@@ -268,8 +267,11 @@ def _rec_to_ndarr(rec_arr, data_type=float):
         dtype=data_type,
     )
 
+
 ##################################################
 # Survey for 1D analytic simulation
+
+
 class Survey1D(Survey):
     """
     Survey class for the 1D and pseudo-3D problems

@@ -5,7 +5,6 @@ import numpy as np
 import scipy.sparse as sp
 import gc
 from .data_misfit import BaseDataMisfit
-from .objective_function import ComboObjectiveFunction
 from .props import BaseSimPEG, Model
 from .regularization import BaseRegularization, BaseComboRegularization, Sparse
 from .objective_function import BaseObjectiveFunction, ComboObjectiveFunction
@@ -41,7 +40,7 @@ class BaseInvProblem(BaseSimPEG):
     @properties.observer("model")
     def _on_model_update(self, value):
         """
-        Sets the current model, and removes dependent properties
+            Sets the current model, and removes dependent properties
         """
         for prop in self.deleteTheseOnModelUpdate:
             if hasattr(self, prop):
@@ -49,18 +48,13 @@ class BaseInvProblem(BaseSimPEG):
 
     def __init__(self, dmisfit, reg, opt, **kwargs):
         super(BaseInvProblem, self).__init__(**kwargs)
-
+        assert isinstance(dmisfit, BaseDataMisfit) or isinstance(
+            dmisfit, BaseObjectiveFunction
+        ), "dmisfit must be a DataMisfit or ObjectiveFunction class."
         assert isinstance(reg, BaseRegularization) or isinstance(
             reg, BaseObjectiveFunction
         ), "reg must be a Regularization or Objective Function class."
-
-        if isinstance(dmisfit, BaseDataMisfit):
-            self.dmisfit = ComboObjectiveFunction([dmisfit])
-        elif isinstance(dmisfit, ComboObjectiveFunction):
-            self.dmisfit = dmisfit
-        else:
-            raise TypeError("dmisfit must be a DataMisfit or ComboObjectiveFunction class.")
-
+        self.dmisfit = dmisfit
         self.reg = reg
         self.opt = opt
         # TODO: Remove: (and make iteration printers better!)
@@ -72,7 +66,7 @@ class BaseInvProblem(BaseSimPEG):
     def startup(self, m0):
         """startup(m0)
 
-        Called when inversion is first starting.
+            Called when inversion is first starting.
         """
         if self.debug:
             print("Calling InvProblem.startup")
@@ -180,7 +174,8 @@ class BaseInvProblem(BaseSimPEG):
 
     @timeIt
     def evalFunction(self, m, return_g=True, return_H=True):
-        """evalFunction(m, return_g=True, return_H=True)"""
+        """evalFunction(m, return_g=True, return_H=True)
+        """
 
         self.model = m
         gc.collect()

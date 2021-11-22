@@ -109,8 +109,8 @@ def MagneticDipoleWholeSpace(
     if orient is not None:
         warnings.warn(
             "orientation kwarg has been deprecated and will be removed"
-            " in SimPEG version 0.16.0, please use the moment argument",
-            FutureWarning,
+            " in SimPEG version 0.15.0, please use the moment argument",
+            DeprecationWarning,
         )
         magnitude = moment
         moment = orient
@@ -120,8 +120,8 @@ def MagneticDipoleWholeSpace(
     if mu is not None:
         warnings.warn(
             "mu kwarg has been deprecated and will be removed"
-            " in SimPEG version 0.16.0, please use the mu_r argument.",
-            FutureWarning,
+            " in SimPEG version 0.15.0, please use the mu_r argument.",
+            DeprecationWarning,
         )
         mu_r = mu / mu_0
 
@@ -198,24 +198,22 @@ def ElectricDipoleWholeSpace(
     if orient is not None:
         warnings.warn(
             "orientation kwarg has been deprecated and will be removed"
-            " in SimPEG version 0.16.0, please use the moment argument.",
-            FutureWarning,
+            " in SimPEG version 0.15.0, please use the moment argument.",
+            DeprecationWarning,
         )
         moment = orient
     mu = kwargs.pop("mu", None)
     if mu is not None:
         warnings.warn(
             "mu kwarg has been deprecated and will be removed"
-            " in SimPEG version 0.16.0, please use the mu_r argument.",
-            FutureWarning,
+            " in SimPEG version 0.15.0, please use the mu_r argument."
         )
         mu_r = mu / mu_0
     cur = kwargs.pop("current", None)
     if cur is not None:
         warnings.warn(
             "current kwarg has been deprecated and will be removed"
-            " in SimPEG version 0.16.0, please use the moment argument.",
-            FutureWarning,
+            " in SimPEG version 0.15.0, please use the moment argument."
         )
         magnitude = cur
     else:
@@ -224,8 +222,7 @@ def ElectricDipoleWholeSpace(
     if length is not None:
         warnings.warn(
             "length kwarg has been deprecated and will be removed"
-            " in SimPEG version 0.16.0, please use the moment argument.",
-            FutureWarning,
+            " in SimPEG version 0.15.0, please use the moment argument."
         )
         magnitude *= length
 

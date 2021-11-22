@@ -46,16 +46,18 @@ class RegularizationMesh(props.BaseSimPEG):
                 change["value"] = value
 
     @property
-    def vol(self):
+    def cell_volumes(self):
         """
         reduced volume vector
 
         :rtype: numpy.ndarray
         :return: reduced cell volume
         """
-        if getattr(self, "_vol", None) is None:
-            self._vol = self.Pac.T * self.mesh.cell_volumes
-        return self._vol
+        if getattr(self, "_cell_volumes", None) is None:
+            self._cell_volumes = self.Pac.T * self.mesh.cell_volumes
+        return self._cell_volumes
+
+    vol = deprecate_property(cell_volumes, "vol", removal_version="0.15.0")
 
     @property
     def nC(self):
@@ -336,7 +338,7 @@ class RegularizationMesh(props.BaseSimPEG):
         :return: differencing matrix for active cells in the x-direction
         """
         if getattr(self, "_cellDiffx", None) is None:
-            self._cellDiffx = self.Pafx.T * self.mesh.cell_gradient_x * self.Pac
+            self._cellDiffx = self.Pafx.T * self.mesh.cellGradx * self.Pac
         return self._cellDiffx
 
     @property
@@ -372,7 +374,7 @@ class RegularizationMesh(props.BaseSimPEG):
         :return: differencing matrix for active faces in the x-direction
         """
         if getattr(self, "_faceDiffx", None) is None:
-            self._faceDiffx = self.Pac.T * self.mesh.face_x_divergence * self.Pafx
+            self._faceDiffx = self.Pac.T * self.mesh.faceDivx * self.Pafx
         return self._faceDiffx
 
     @property

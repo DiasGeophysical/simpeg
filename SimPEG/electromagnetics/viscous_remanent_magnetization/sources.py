@@ -50,7 +50,9 @@ class BaseSrcVRM(BaseSrc):
 
 class MagDipole(BaseSrcVRM):
 
-    """"""
+    """
+
+    """
 
     def __init__(self, receiver_list, location, moment, waveform, **kwargs):
 
@@ -129,7 +131,7 @@ class MagDipole(BaseSrcVRM):
 
         """
 
-        refFlag = np.zeros(np.shape(xyzc)[0], dtype=int)
+        refFlag = np.zeros(np.shape(xyzc)[0], dtype=np.int)
 
         r = np.sqrt(
             (xyzc[:, 0] - self.location[0]) ** 2
@@ -154,7 +156,9 @@ class MagDipole(BaseSrcVRM):
 
 class CircLoop(BaseSrcVRM):
 
-    """"""
+    """
+
+    """
 
     def __init__(
         self, receiver_list, location, radius, orientation, Imax, waveform, **kwargs
@@ -279,7 +283,7 @@ class CircLoop(BaseSrcVRM):
 
         """
 
-        refFlag = np.zeros(np.shape(xyzc)[0], dtype=int)
+        refFlag = np.zeros(np.shape(xyzc)[0], dtype=np.int)
 
         r0 = self.location
         a = self.radius
@@ -334,11 +338,13 @@ class CircLoop(BaseSrcVRM):
 
 class LineCurrent(BaseSrcVRM):
 
-    """"""
+    """
+
+    """
 
     location = properties.Array("location of the source wire points", shape=("*", 3))
     loc = deprecate_property(
-        location, "loc", new_name="location", removal_version="0.16.0", future_warn=True
+        location, "loc", new_name="location", removal_version="0.15.0"
     )
 
     def __init__(self, receiver_list, location, Imax, waveform, **kwargs):
@@ -459,13 +465,13 @@ class LineCurrent(BaseSrcVRM):
 
         """
 
-        ref_flag = np.zeros(np.shape(xyzc)[0], dtype=int)
+        ref_flag = np.zeros(np.shape(xyzc)[0], dtype=np.int)
 
         nSeg = np.shape(self.location)[0] - 1
 
         for tt in range(0, nSeg):
 
-            ref_flag_tt = np.zeros(np.shape(xyzc)[0], dtype=int)
+            ref_flag_tt = np.zeros(np.shape(xyzc)[0], dtype=np.int)
             tx0 = self.location[tt, :]
             tx1 = self.location[tt + 1, :]
             a = (tx1[0] - tx0[0]) ** 2 + (tx1[1] - tx0[1]) ** 2 + (tx1[2] - tx0[2]) ** 2

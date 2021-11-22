@@ -24,7 +24,8 @@ class BaseRx(BaseSimPEGRx):
         default="phi",
     )
 
-    _geometric_factor = {}
+    _geometric_factor = None
+    _dc_voltage = None
 
     def __init__(self, locations=None, **kwargs):
         super(BaseRx, self).__init__(**kwargs)
@@ -59,6 +60,10 @@ class BaseRx(BaseSimPEGRx):
     def geometric_factor(self):
         return self._geometric_factor
 
+    @property
+    def dc_voltage(self):
+        return self._dc_voltage
+
     def projGLoc(self, f):
         """Grid Location projection (e.g. Ex Fy ...)"""
         # field = self.knownRxTypes[self.rxType][0]
@@ -72,45 +77,17 @@ class BaseRx(BaseSimPEGRx):
         proj_f = self.projField
         if proj_f == "phi":
             proj_f = "phiSolution"
-        v = P * f[src, proj_f]
+        return P * f[src, proj_f]
 
-        if self.data_type == "apparent_resistivity":
-            try:
-                if mesh.dim == 2:
-                    return v / self.geometric_factor[src][:, None]
-                return v / self.geometric_factor[src]
-            except KeyError:
-                raise KeyError(
-                    "Receiver geometric factor has not been set, please execute "
-                    "survey.set_geometric_factor()"
-                )
-        return v
-
-    def evalDeriv(self, src, mesh, f, v=None, adjoint=False):
+    def evalDeriv(self, src, mesh, f, v, adjoint=False):
         P = self.getP(mesh, self.projGLoc(f))
-
-        factor = None
-        if self.data_type == "apparent_resistivity":
-            factor = 1.0 / self.geometric_factor[src]
-
-        if v is None:
-            if factor is not None:
-                P = sdiag(factor) @ P
-            if adjoint:
-                return P.T
-            return P
-
         if not adjoint:
-            v = P @ v
-            if factor is not None:
-                v = factor * v
-            return v
+            return P * v
         elif adjoint:
-            if factor is not None:
-                v = factor * v
-            return P.T @ v
+            return P.T * v
 
 
+# DC.Rx.Dipole(locations)
 class Dipole(BaseRx):
     """
     Dipole receiver
@@ -134,8 +111,8 @@ class Dipole(BaseRx):
             warnings.warn(
                 "The locationsM property has been deprecated. Please set the "
                 "locations_m property instead. This will be removed in version"
-                " 0.16.0 of SimPEG",
-                FutureWarning,
+                " 0.15.0 of SimPEG",
+                DeprecationWarning,
             )
 
         if "locationsN" in kwargs.keys():
@@ -143,8 +120,8 @@ class Dipole(BaseRx):
             warnings.warn(
                 "The locationsN property has been deprecated. Please set the "
                 "locations_n property instead. This will be removed in version"
-                " 0.16.0 of SimPEG",
-                FutureWarning,
+                " 0.15.0 of SimPEG",
+                DeprecationWarning,
             )
 
         # if locations_m set, then use locations_m, locations_n
@@ -185,14 +162,6 @@ class Dipole(BaseRx):
         super(Dipole, self).__init__(**kwargs)
         self.locations = locations
 
-    def __repr__(self):
-        return ",\n".join(
-            [
-                f"{self.__class__.__name__}(m: {m}; n: {n})"
-                for (m, n) in zip(self.locations_m, self.locations_n)
-            ]
-        )
-
     @property
     def locations_m(self):
         """Locations of the M-electrodes"""
@@ -216,6 +185,16 @@ class Dipole(BaseRx):
         P1 = mesh.getInterpolationMat(self.locations[1], Gloc)
         P = P0 - P1
 
+        if self.data_type == "apparent_resistivity":
+            P = sdiag(1.0 / self.geometric_factor) * P
+        elif self.data_type == "apparent_chargeability":
+            if self.dc_voltage is None:
+                raise AttributeError(
+                    "DC voltages must be set to survey object in order to "
+                    "simulate apparent chargeabilities directly"
+                )
+            P = sdiag(1.0 / self.dc_voltage) * P
+
         if self.storeProjections:
             self._Ps[mesh] = P
 
@@ -236,11 +215,6 @@ class Pole(BaseRx):
     #     # We may not need this ...
     #     BaseRx.__init__(self, locations)
 
-    def __repr__(self):
-        return ",\n".join(
-            [f"{self.__class__.__name__}(m: {m})" for m in self.locations]
-        )
-
     @property
     def nD(self):
         """Number of data in the receiver."""
@@ -252,6 +226,10 @@ class Pole(BaseRx):
 
         P = mesh.getInterpolationMat(self.locations, Gloc)
 
+        if self.data_type == "apparent_resistivity":
+            P = sdiag(1.0 / self.geometric_factor) * P
+        elif self.data_type == "apparent_chargeability":
+            P = sdiag(1.0 / self.dc_voltage) * P
         if self.storeProjections:
             self._Ps[mesh] = P
 
@@ -263,11 +241,11 @@ class Pole(BaseRx):
 ############
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class Dipole_ky(Dipole):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class Pole_ky(Pole):
     pass

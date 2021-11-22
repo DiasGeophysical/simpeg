@@ -111,12 +111,13 @@ def dask_evalFunction(self, m, return_g=True, return_H=True):
     gc.collect()
 
     # call dpred on the worker machine and grab the residual too (this will be a list)  
-    residuals = self.dmisfit.objfcts.simulation.dpred(m, compute_J=return_H)
+    print("got residuals..")
+    residuals = self.dmisfit.simulation.dpred(m, compute_J=return_H)
 
     phi_d = 0
     for residual in residuals:
         phi_d += 0.5 * np.vdot(residual, residual)
-
+    print("calculated phi_d..")
     phi_d = np.asarray(phi_d)
     # print(self.dpred[0])
     self.reg2Deriv = self.reg.deriv2(m)
@@ -130,7 +131,8 @@ def dask_evalFunction(self, m, return_g=True, return_H=True):
 
     out = (phi,)
     if return_g:
-        phi_dDeriv = self.dmisfit.deriv(m, f=self.dpred)
+        print("getting deriv..")
+        phi_dDeriv = self.dmisfit.deriv(residual)
         if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
             phi_mDeriv = self.reg2Deriv * self.reg._delta_m(m)
         else:

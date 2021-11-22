@@ -6,7 +6,7 @@ from __future__ import division
 import numpy as np
 import scipy.sparse as sp
 from six import integer_types
-
+from dask.distributed import Client, get_client
 from discretize.tests import checkDerivative
 
 from .maps import IdentityMap
@@ -347,13 +347,9 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
                 continue
             else:
                 if f is not None and objfct._hasFields:
-                    aux = objfct.deriv(m, f=f[i])
-                    if not isinstance(aux, Zero):
-                        g += multiplier * aux
+                    g += multiplier * objfct.deriv(m, f=f[i])
                 else:
-                    aux = objfct.deriv(m)
-                    if not isinstance(aux, Zero):
-                        g += multiplier * aux
+                    g += multiplier * objfct.deriv(m)
         return g
 
     def deriv2(self, m, v=None, f=None):

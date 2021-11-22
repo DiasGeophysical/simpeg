@@ -65,7 +65,7 @@ class Data(properties.HasProperties):
 
         The standard_deviation is constructed as follows::
 
-            sqrt( (relative_error * np.abs(dobs))**2 + noise_floor**2 )
+            relative_error * np.abs(dobs) + noise_floor
 
         For example, if you set
 
@@ -93,7 +93,7 @@ class Data(properties.HasProperties):
 
         The standard_deviation is constructed as follows::
 
-            sqrt( (relative_error * np.abs(dobs))**2 + noise_floor**2 )
+            relative_error * np.abs(dobs) + noise_floor
 
         For example, if you set
 
@@ -167,9 +167,9 @@ class Data(properties.HasProperties):
 
         .. code:: python
 
-            data.standard_deviation = np.sqrt(
-                (data.relative_error*np.abs(data.dobs))**2 +
-                data.noise_floor**2
+            data.standard_deviation = (
+                data.relative_error*np.abs(data.dobs) +
+                data.noise_floor
             )
 
         otherwise, the standard_deviation can be set directly
@@ -191,11 +191,11 @@ class Data(properties.HasProperties):
 
         uncert = np.zeros(self.nD)
         if self.relative_error is not None:
-            uncert += np.array(self.relative_error * np.absolute(self.dobs))**2
+            uncert = uncert + self.relative_error * np.absolute(self.dobs)
         if self.noise_floor is not None:
-            uncert += np.array(self.noise_floor)**2
+            uncert = uncert + self.noise_floor
 
-        return np.sqrt(uncert)
+        return uncert
 
     @standard_deviation.setter
     def standard_deviation(self, value):
@@ -293,18 +293,10 @@ class Data(properties.HasProperties):
     # Deprecated
     ##########################
     std = deprecate_property(
-        relative_error,
-        "std",
-        new_name="relative_error",
-        removal_version="0.16.0",
-        future_warn=True,
+        relative_error, "std", new_name="relative_error", removal_version="0.15.0"
     )
     eps = deprecate_property(
-        noise_floor,
-        "eps",
-        new_name="noise_floor",
-        removal_version="0.16.0",
-        future_warn=True,
+        noise_floor, "eps", new_name="noise_floor", removal_version="0.15.0"
     )
 
 
@@ -355,8 +347,8 @@ class _Data(Data):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "The survey.Data class has been moved. To import the data class, "
-            "please use SimPEG.data.Data. This class will be removed in SimPEG 0.16.0",
-            FutureWarning,
+            "please use SimPEG.data.Data. This class will be removed in SimPEG 0.15.0",
+            DeprecationWarning,
         )
         super().__init__(*args, **kwargs)
 

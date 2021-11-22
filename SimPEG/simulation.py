@@ -132,12 +132,6 @@ class BaseSimulation(props.HasModel):
         "path to store the sensitivty", default="./sensitivity/"
     )
 
-    model_type = properties.StringChoice(
-        "Type of model",
-        choices=["scalar", "vector"],
-        default="scalar",
-    )
-
     # TODO: need to implement a serializer for this & setter
     solver = Class(
         "Linear algebra solver (e.g. from pymatsolver)",
@@ -209,19 +203,11 @@ class BaseSimulation(props.HasModel):
                 setattr(self, mat, None)  # set to none
 
     Solver = deprecate_property(
-        solver,
-        "Solver",
-        new_name="simulation.solver",
-        removal_version="0.16.0",
-        future_warn=True,
+        solver, "Solver", new_name="simulation.solver", removal_version="0.15.0"
     )
 
     solverOpts = deprecate_property(
-        solver_opts,
-        "solverOpts",
-        new_name="solver_opts",
-        removal_version="0.16.0",
-        future_warn=True,
+        solver_opts, "solverOpts", new_name="solver_opts", removal_version="0.15.0"
     )
 
     ###########################################################################
@@ -375,9 +361,9 @@ class BaseSimulation(props.HasModel):
         std = kwargs.pop("std", None)
         if std is not None:
             warnings.warn(
-                "The std parameter will be deprecated in SimPEG 0.16.0. "
+                "The std parameter will be deprecated in SimPEG 0.15.0. "
                 "Please use relative_error.",
-                FutureWarning,
+                DeprecationWarning,
             )
             relative_error = std
 
@@ -410,8 +396,8 @@ class BaseSimulation(props.HasModel):
             "Simulation.pair(survey) will be deprecated. Please update your code "
             "to instead use simulation.survey = survey, or pass it upon intialization "
             "of the simulation object. This will be removed in version "
-            "0.16.0 of SimPEG",
-            FutureWarning,
+            "0.15.0 of SimPEG",
+            DeprecationWarning,
         )
         survey.pair(self)
 
@@ -469,19 +455,11 @@ class BaseTimeSimulation(BaseSimulation):
         return self.time_mesh.vectorNx
 
     timeSteps = deprecate_property(
-        time_steps,
-        "timeSteps",
-        new_name="time_steps",
-        removal_version="0.16.0",
-        future_warn=True,
+        time_steps, "timeSteps", new_name="time_steps", removal_version="0.15.0"
     )
 
     timeMesh = deprecate_property(
-        time_mesh,
-        "timeMesh",
-        new_name="time_mesh",
-        removal_version="0.16.0",
-        future_warn=True,
+        time_mesh, "timeMesh", new_name="time_mesh", removal_version="0.15.0"
     )
 
     def dpred(self, m=None, f=None):

@@ -1,10 +1,9 @@
 import numpy as np
 import properties
-from ....utils.code_utils import deprecate_class, deprecate_property
+from ....utils.code_utils import deprecate_class
 
 from .... import props
 from ....utils import sdiag
-from ....data import Data
 
 from ..resistivity.fields_2d import Fields2D, Fields2DCellCentered, Fields2DNodal
 
@@ -15,23 +14,24 @@ from ..resistivity import Simulation2DNodal as BaseSimulation2DNodal
 
 class BaseIPSimulation2D(BaseDCSimulation2D):
 
+    sigma = props.PhysicalProperty("Electrical conductivity (S/m)")
+
+    rho = props.PhysicalProperty("Electrical resistivity (Ohm m)")
+
+    props.Reciprocal(sigma, rho)
+
     eta, etaMap, etaDeriv = props.Invertible("Electrical Chargeability (V/V)")
 
-    _data_type = properties.StringChoice(
+    data_type = properties.StringChoice(
         "IP data type", default="volt", choices=["volt", "apparent_chargeability"],
-    )
-
-    data_type = deprecate_property(
-        _data_type, "data_type", new_name="receiver.data_type", removal_version="0.16.0"
     )
 
     fieldsPair = Fields2D
     _Jmatrix = None
-    _f = None  # the DC fields
-    _sign = 1.0
+    _f = None
+    sign = None
     _pred = None
-    _scale = None
-    gtgdiag = None
+    _dc_data_set = False
 
     def fields(self, m):
         if self.verbose:
@@ -40,18 +40,19 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
             # re-uses the DC simulation's fields method
             self._f = super().fields(None)
 
-        if self._scale is None:
-            scale = Data(self.survey, np.full(self.survey.nD, self._sign))
-            f = self.fields_to_space(self._f)
+        if not self._dc_data_set:
             # loop through receievers to check if they need to set the _dc_voltage
             for src in self.survey.source_list:
                 for rx in src.receiver_list:
                     if (
                         rx.data_type == "apparent_chargeability"
-                        or self._data_type == "apparent_chargeability"
+                        and rx._dc_voltage is None
                     ):
-                        scale[src, rx] = self._sign / rx.eval(src, self.mesh, f)
-            self._scale = scale.dobs
+                        rx.data_type = "volt"  # make the rx evaluate a voltage
+                        rx._dc_voltage = rx.eval(src, self.mesh, self._f)
+                        rx.data_type = "apparent_chargeability"
+                        rx._Ps = {}
+            self._dc_data_set = True  # avoid loop through after first call
 
         self._pred = self.forward(m, f=self._f)
 
@@ -59,11 +60,11 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
 
     def dpred(self, m=None, f=None):
         """
-        Predicted data.
+            Predicted data.
 
-        .. math::
+            .. math::
 
-            d_\\text{pred} = Pf(m)
+                d_\\text{pred} = Pf(m)
 
         """
         # return self.Jvec(m, m, f=f)
@@ -72,26 +73,20 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
 
         return self._pred
 
-    def getJtJdiag(self, m, W=None):
-        if self.gtgdiag is None:
-            J = self.getJ(m)
-            if W is None:
-                W = self._scale ** 2
-            else:
-                W = (self._scale * W.diagonal()) ** 2
-
-            self.gtgdiag = np.einsum("i,ij,ij->j", W, J, J)
-
-        return self.gtgdiag
-
     def Jvec(self, m, v, f=None):
-        return self._scale * super().Jvec(m, v, f)
+        self.model = m
+        J = self.getJ(m, f=f)
+        Jv = J.dot(v)
+        return self.sign * Jv
 
     def forward(self, m, f=None):
         return self.Jvec(m, m, f=f)
 
     def Jtvec(self, m, v, f=None):
-        return super().Jtvec(m, v * self._scale, f)
+        self.model = m
+        J = self.getJ(m, f=f)
+        Jtv = J.T.dot(v)
+        return self.sign * Jtv
 
     @property
     def deleteTheseOnModelUpdate(self):
@@ -137,7 +132,7 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
     @property
     def MccRhoiDerivMat(self):
         """
-        Derivative of MccRho with respect to the model
+            Derivative of MccRho with respect to the model
         """
         if getattr(self, "_MccRhoiDerivMat", None) is None:
             rho = self.rho
@@ -148,7 +143,7 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
 
     def MccRhoiDeriv(self, u, v, adjoint=False):
         """
-        Derivative of :code:`MccRhoi` with respect to the model.
+            Derivative of :code:`MccRhoi` with respect to the model.
         """
         if len(self.rho.shape) > 1:
             if self.rho.shape[1] > self.mesh.dim:
@@ -172,7 +167,7 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
     @property
     def MnSigmaDerivMat(self):
         """
-        Derivative of MnSigma with respect to the model
+            Derivative of MnSigma with respect to the model
         """
         if getattr(self, "_MnSigmaDerivMat", None) is None:
             sigma = self.sigma
@@ -183,7 +178,7 @@ class BaseIPSimulation2D(BaseDCSimulation2D):
 
     def MnSigmaDeriv(self, u, v, adjoint=False):
         """
-        Derivative of MnSigma with respect to the model times a vector (u)
+            Derivative of MnSigma with respect to the model times a vector (u)
         """
         if self.storeInnerProduct:
             if adjoint:
@@ -210,6 +205,10 @@ class Simulation2DCellCentered(BaseIPSimulation2D, BaseSimulation2DCellCentered)
     _formulation = "HJ"  # CC potentials means J is on faces
     fieldsPair = Fields2DCellCentered
     bc_type = "Mixed"
+    sign = 1.0
+
+    def __init__(self, mesh, **kwargs):
+        super().__init__(mesh, **kwargs)
 
     def delete_these_for_sensitivity(self, sigma=None, rho=None):
         if self._Jmatrix is not None:
@@ -228,18 +227,18 @@ class Simulation2DCellCentered(BaseIPSimulation2D, BaseSimulation2DCellCentered)
         Derivative of MfRho with respect to the model
         """
         if getattr(self, "_MfRhoDerivMat", None) is None:
-            drho_dlogrho = sdiag(self.rho) * self.etaDeriv
             self._MfRhoDerivMat = (
                 self.mesh.getFaceInnerProductDeriv(np.ones(self.mesh.nC))(
                     np.ones(self.mesh.nF)
                 )
-                * drho_dlogrho
+                * sdiag(self.rho)
+                * self.etaDeriv
             )
         return self._MfRhoDerivMat
 
     def MfRhoIDeriv(self, u, v, adjoint=False):
         """
-        Derivative of :code:`MfRhoI` with respect to the model.
+            Derivative of :code:`MfRhoI` with respect to the model.
         """
         dMfRhoI_dI = -self.MfRhoI ** 2
         if self.storeInnerProduct:
@@ -264,7 +263,10 @@ class Simulation2DNodal(BaseIPSimulation2D, BaseSimulation2DNodal):
     _solutionType = "phiSolution"
     _formulation = "EB"  # CC potentials means J is on faces
     fieldsPair = Fields2DNodal
-    _sign = -1.0
+    sign = -1.0
+
+    def __init__(self, mesh, **kwargs):
+        super().__init__(mesh, **kwargs)
 
     def delete_these_for_sensitivity(self, sigma=None, rho=None):
         if self._Jmatrix is not None:
@@ -287,11 +289,11 @@ Simulation2DCellCentred = Simulation2DCellCentered
 ############
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class Problem2D_N(Simulation2DNodal):
     pass
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class Problem2D_CC(Simulation2DCellCentered):
     pass

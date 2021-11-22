@@ -9,7 +9,7 @@ from ...utils.code_utils import deprecate_property
 from geoana.em.static import MagneticDipoleWholeSpace, CircularLoopWholeSpace
 
 from ..base import BaseEMSrc
-from ..utils import segmented_line_current_source_term
+from ..utils import getSourceTermLineCurrentPolygon
 from ...props import LocationVector
 from ...utils import setKwargs, sdiag, Zero, Identity
 
@@ -320,7 +320,7 @@ class MagDipole(BaseTDEMSrc):
         "location of the source", default=np.r_[0.0, 0.0, 0.0], shape=(3,)
     )
     loc = deprecate_property(
-        location, "loc", new_name="location", removal_version="0.16.0", future_warn=True
+        location, "loc", new_name="location", removal_version="0.15.0"
     )
 
     def __init__(self, receiver_list=None, **kwargs):
@@ -402,7 +402,7 @@ class MagDipole(BaseTDEMSrc):
             )
 
     def _phiSrc(self, prob):
-        Ainv = prob.solver(self._getAmagnetostatic(prob))  # todo: store these
+        Ainv = prob.Solver(self._getAmagnetostatic(prob))  # todo: store these
         rhs = self._rhs_magnetostatic(prob)
         Ainv.clean()
         return Ainv * rhs
@@ -518,7 +518,7 @@ class LineCurrent(BaseTDEMSrc):
 
     location = properties.Array("location of the source", shape=("*", 3))
     loc = deprecate_property(
-        location, "loc", new_name="location", removal_version="0.16.0", future_warn=True
+        location, "loc", new_name="location", removal_version="0.15.0"
     )
     current = properties.Float("current in the line", default=1.0)
 
@@ -529,7 +529,14 @@ class LineCurrent(BaseTDEMSrc):
 
     def Mejs(self, prob):
         if getattr(self, "_Mejs", None) is None:
-            self._Mejs = segmented_line_current_source_term(prob.mesh, self.location)
+            x0 = prob.mesh.x0
+            hx = prob.mesh.hx
+            hy = prob.mesh.hy
+            hz = prob.mesh.hz
+            px = self.loc[:, 0]
+            py = self.loc[:, 1]
+            pz = self.loc[:, 2]
+            self._Mejs = getSourceTermLineCurrentPolygon(x0, hx, hy, hz, px, py, pz)
         return self.current * self._Mejs
 
     def getRHSdc(self, prob):
@@ -669,14 +676,14 @@ class RawVec_Grounded(BaseTDEMSrc):
 
     def _aInitial(self, prob):
         A = self._getAmmr(prob)
-        Ainv = prob.solver(A)  # todo: store this
+        Ainv = prob.Solver(A)  # todo: store this
         s_e = self.s_e(prob, 0)
         rhs = s_e - self.jInitial(prob)
         return Ainv * rhs
 
     def _aInitialDeriv(self, prob, v, adjoint=False):
         A = self._getAmmr(prob)
-        Ainv = prob.solver(A)  # todo: store this - move it to the problem
+        Ainv = prob.Solver(A)  # todo: store this - move it to the problem
 
         if adjoint is True:
             return -1 * (

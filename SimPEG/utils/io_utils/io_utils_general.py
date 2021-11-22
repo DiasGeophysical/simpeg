@@ -58,7 +58,7 @@ def read_GOCAD_ts(tsfile):
     while re.match("TRGL", line):
         l_input = re.split("[\s*]", line)
         temp = np.array(l_input[1:4])
-        trgl.append(temp.astype(int))
+        trgl.append(temp.astype(np.int))
 
         # Read next line
         line = fid.readline()
@@ -69,9 +69,9 @@ def read_GOCAD_ts(tsfile):
 
 
 def surface2inds(vrtx, trgl, mesh, boundaries=True, internal=True):
-    """ "
+    """"
     Function to read gocad polystructure file and output indexes of
-    mesh within the structure.
+    mesh with in the structure.
 
     """
     import vtk

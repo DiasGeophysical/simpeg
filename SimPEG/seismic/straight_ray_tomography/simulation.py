@@ -120,6 +120,6 @@ class Simulation2DIntegral(LinearSimulation):
 ############
 
 
-@deprecate_class(removal_version="0.16.0", future_warn=True)
+@deprecate_class(removal_version="0.15.0")
 class StraightRayProblem(Simulation2DIntegral):
     pass

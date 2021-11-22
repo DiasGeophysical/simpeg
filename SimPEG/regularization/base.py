@@ -195,12 +195,10 @@ class BaseRegularization(BaseObjectiveFunction):
 ###############################################################################
 
 
-class SimpleComboRegularization(ComboObjectiveFunction):
+class BaseComboRegularization(ComboObjectiveFunction):
     def __init__(self, mesh, objfcts=[], **kwargs):
 
-        super(SimpleComboRegularization, self).__init__(
-            objfcts=objfcts, multipliers=None
-        )
+        super(BaseComboRegularization, self).__init__(objfcts=objfcts, multipliers=None)
         self.regmesh = RegularizationMesh(mesh)
         if "indActive" in kwargs.keys():
             indActive = kwargs.pop("indActive")
@@ -208,10 +206,7 @@ class SimpleComboRegularization(ComboObjectiveFunction):
         utils.setKwargs(self, **kwargs)
 
         # link these attributes
-        linkattrs = [
-            "regmesh",
-            "indActive",
-        ]
+        linkattrs = ["regmesh", "indActive", "cell_weights", "mapping"]
 
         for attr in linkattrs:
             val = getattr(self, attr)
@@ -314,6 +309,17 @@ class SimpleComboRegularization(ComboObjectiveFunction):
         if getattr(self, "regmesh", None) is not None:
             self.regmesh.indActive = change["value"]
 
+    @properties.validator("cell_weights")
+    def _validate_cell_weights(self, change):
+        if change["value"] is not None:
+            # todo: residual size? we need to know the expected end shape
+            if self._nC_residual != "*":
+                assert (
+                    len(change["value"]) == self._nC_residual
+                ), "cell_weights must be length {} not {}".format(
+                    self._nC_residual, len(change["value"])
+                )
+
     @properties.observer("mref")
     def _mirror_mref_to_objfctlist(self, change):
         for fct in self.objfcts:
@@ -347,22 +353,6 @@ class SimpleComboRegularization(ComboObjectiveFunction):
         for fct in self.objfcts:
             fct.indActive = value
 
-
-class BaseComboRegularization(SimpleComboRegularization):
-    def __init__(self, mesh, objfcts=[], **kwargs):
-
-        super(BaseComboRegularization, self).__init__(
-            mesh=mesh, objfcts=objfcts, **kwargs
-        )
-
-        # link these attributes
-        linkattrs = ["regmesh", "indActive", "cell_weights", "mapping"]
-
-        for attr in linkattrs:
-            val = getattr(self, attr)
-            if val is not None:
-                [setattr(fct, attr, val) for fct in self.objfcts]
-
     @properties.observer("cell_weights")
     def _mirror_cell_weights_to_objfctlist(self, change):
         for fct in self.objfcts:
@@ -372,14 +362,3 @@ class BaseComboRegularization(SimpleComboRegularization):
     def _mirror_mapping_to_objfctlist(self, change):
         for fct in self.objfcts:
             fct.mapping = change["value"]
-
-    @properties.validator("cell_weights")
-    def _validate_cell_weights(self, change):
-        if change["value"] is not None:
-            # todo: residual size? we need to know the expected end shape
-            if self._nC_residual != "*":
-                assert (
-                    len(change["value"]) == self._nC_residual
-                ), "cell_weights must be length {} not {}".format(
-                    self._nC_residual, len(change["value"])
-                )
