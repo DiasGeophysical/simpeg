@@ -23,6 +23,38 @@ Sim.sensitivity_path = './sensitivity/'
 Sim.cluster_worker_ids = []
 
 
+def recv_msg(sock):
+    """
+        Read message length and unpack it into an integer
+    """
+
+    raw_msglen = recvall(sock, 4)
+    
+    if not raw_msglen:
+        return None
+    
+    msglen = struct.unpack('>I', raw_msglen)[0]
+    
+    # Read the message data
+    return recvall(sock, msglen)
+
+
+def recvall(sock, n):
+    """
+        Helper function to recv n bytes or return None if EOF is hit
+    """
+    data = bytearray()
+    
+    while len(data) < n:
+        packet = sock.recv(n - len(data))
+        
+        if not packet:
+            return None
+        
+        data.extend(packet)
+    
+    return data
+
 def workerRequest(outputs, simlite, host, index):
     """
         A basic method for handling worker communications
@@ -58,14 +90,14 @@ def workerRequest(outputs, simlite, host, index):
             for sock in ready_to_read:             
                 if sock == s:
                     # incoming message from remote server, s
-                    data = sock.recv(4096)
+                    data = recv_msg(sock)
 
                     if not data :
                         print('\nDisconnected from chat server')
                     
                     # check what came back from server
                     else :
-                        print("rx data and checking: ", data.decode('utf-8')[:10])
+                        print("rx data and checking: ", data.decode('utf-8')[:25])
                         
                         # check if initialization is confirmed
                         if "init" in data.decode('utf-8'):
@@ -78,11 +110,15 @@ def workerRequest(outputs, simlite, host, index):
                                 outputs[index] = server_response["init"]
                         
                         # check if predicted data is being sent back
-                        elif "residual" in data.decode('utf-8'):                    
+                        elif "residual" in data.decode('utf-8'):
+                            print("in residuals to store")
+                            out_file = open("/home/diasproc/Documents/jsonoutput.txt", "w+")
+                            out_file.write('%s' % data.decode('utf-8'))
                             server_response = json.loads(data.decode('utf-8'))
-
+                            print("converted to json")
                             # assign the data
                             outputs[index] = np.asarray(server_response["residual"])
+                            print("outputs assigned")
                             listening = False
                             print("\n\n Assigned residuals to outputs")
 
@@ -102,8 +138,8 @@ def workerRequest(outputs, simlite, host, index):
                             outputs[index] = np.asarray(server_response["jtvec"])
                             listening = False
             
-            # close the socket
-            s.close()
+        # close the socket
+        s.close()
 
     except:
         print("connection to worker failed")
