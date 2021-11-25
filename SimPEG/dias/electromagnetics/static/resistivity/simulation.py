@@ -2,6 +2,7 @@ from .....electromagnetics.static.resistivity.simulation import BaseDCSimulation
 from .....utils import Zero, mkvc
 from .....data import Data
 from ....utils import compute_chunk_sizes
+from ....worker_utils.worker_communication import workerRequest
 import dask
 import dask.array as da
 from dask.distributed import Future
@@ -16,135 +17,12 @@ import socket
 import select
 import struct
 import time
+import sys
 
 numcodecs.blosc.use_threads = False
 
 Sim.sensitivity_path = './sensitivity/'
 Sim.cluster_worker_ids = []
-
-
-def recv_msg(sock):
-    """
-        Read message length and unpack it into an integer
-    """
-
-    raw_msglen = recvall(sock, 4)
-    
-    if not raw_msglen:
-        return None
-    
-    msglen = struct.unpack('>I', raw_msglen)[0]
-    
-    # Read the message data
-    return recvall(sock, msglen)
-
-
-def recvall(sock, n):
-    """
-        Helper function to recv n bytes or return None if EOF is hit
-    """
-    data = bytearray()
-    
-    while len(data) < n:
-        packet = sock.recv(n - len(data))
-        
-        if not packet:
-            return None
-        
-        data.extend(packet)
-    
-    return data
-
-def workerRequest(outputs, simlite, host, index):
-    """
-        A basic method for handling worker communications
-    """
-    
-    # construct the request message to be sent to the worker
-    message_to = simlite["request"] + "!" + json.dumps(simlite)
-    
-    # construct final message that contains server instruction for size of data
-    msg = struct.pack('>I', len(message_to)) + message_to.encode('utf-8')
-    
-    # create client socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(2)
-
-    # connect to remote host
-    try :
-        s.connect((host.split(":")[0], int(host.split(":")[1])))
-
-        # send that data
-        s.sendall(msg)
-
-        # initiate the listening control variable
-        listening = True
-        while listening:
-            
-            #create the socket list
-            socket_list = [0, s]
-
-            # Get the list sockets which are readable
-            ready_to_read,ready_to_write,in_error = select.select(socket_list , [], [])
-
-            for sock in ready_to_read:             
-                if sock == s:
-                    # incoming message from remote server, s
-                    data = recv_msg(sock)
-
-                    if not data :
-                        print('\nDisconnected from chat server')
-                    
-                    # check what came back from server
-                    else :
-                        print("rx data and checking: ", data.decode('utf-8')[:25])
-                        
-                        # check if initialization is confirmed
-                        if "init" in data.decode('utf-8'):
-                            server_response = json.loads(data.decode('utf-8'))
-
-                            if server_response["init"] == True:
-                                listening = False
-                                
-                                # assign confirmation
-                                outputs[index] = server_response["init"]
-                        
-                        # check if predicted data is being sent back
-                        elif "residual" in data.decode('utf-8'):
-                            print("in residuals to store")
-                            out_file = open("/home/diasproc/Documents/jsonoutput.txt", "w+")
-                            out_file.write('%s' % data.decode('utf-8'))
-                            server_response = json.loads(data.decode('utf-8'))
-                            print("converted to json")
-                            # assign the data
-                            outputs[index] = np.asarray(server_response["residual"])
-                            print("outputs assigned")
-                            listening = False
-                            print("\n\n Assigned residuals to outputs")
-
-                        # check if jvec data is being sent back
-                        elif "jvec" in data.decode('utf-8'):                    
-                            server_response = json.loads(data.decode('utf-8'))
-                            
-                            # assign the data
-                            outputs[index] = np.asarray(server_response["jvec"])
-                            listening = False
-
-                        # check if jvec data is being sent back
-                        elif "jtvec" in data.decode('utf-8'):                    
-                            server_response = json.loads(data.decode('utf-8'))
-                            
-                            # assign the data
-                            outputs[index] = np.asarray(server_response["jtvec"])
-                            listening = False
-            
-        # close the socket
-        s.close()
-
-    except:
-        print("connection to worker failed")
-
-Sim.worker = workerRequest
 
 
 def dias_fields(self, m=None, return_Ainv=False):
@@ -191,7 +69,7 @@ def dias_getJtJdiag(self, m, W=None):
 Sim.getJtJdiag = dias_getJtJdiag
 
 
-def dias_Jvec(self, v):
+def dias_Jvec_call(self, v):
     """
         Compute sensitivity matrix (J) and vector (v) product.
     """
@@ -203,7 +81,7 @@ def dias_Jvec(self, v):
     tc = time.time()
     # get predicted data from workers
     worker_threads = []
-    results = [None] * len(worker_threads)
+    results = [None] * len(self.cluster_worker_ids)
     cnt_host = 0
     for address in self.cluster_worker_ids:
         p = Thread(target=workerRequest, args=(results, jvec_requests, address, cnt_host))
@@ -221,10 +99,43 @@ def dias_Jvec(self, v):
     data = np.hstack(results)
 
 
-Sim.Jvec = dias_Jvec
+Sim.Jvec = dias_Jvec_call
 
 
-def dias_Jtvec(self, v):
+def dias_Jvec(self, m, v, f=None):
+        """
+        Compute sensitivity matrix (J) and vector (v) product.
+        """
+
+        if self.store_sensitivities:
+            J = self.getJ(m, f=f)
+            return J.dot(v)
+
+        self.model = m
+
+        if self._mini_survey is not None:
+            survey = self._mini_survey
+        else:
+            survey = self.survey
+
+        Jv = []
+        for source in survey.source_list:
+            u_source = f[source, self._solutionType]  # solution vector
+            dA_dm_v = self.getADeriv(u_source, v)
+            dRHS_dm_v = self.getRHSDeriv(source, v)
+            du_dm_v = self.Ainv * (-dA_dm_v + dRHS_dm_v)
+            for rx in source.receiver_list:
+                df_dmFun = getattr(f, "_{0!s}Deriv".format(rx.projField), None)
+                df_dm_v = df_dmFun(source, du_dm_v, v, adjoint=False)
+                Jv.append(rx.evalDeriv(source, self.mesh, f, df_dm_v))
+        Jv = np.hstack(Jv)
+        return self._mini_survey_data(Jv)
+
+
+Sim.dias_Jvec = dias_Jvec
+
+
+def dias_Jtvec_call(self, v):
     """
         Compute adjoint sensitivity matrix (J^T) and vector (v) product.
     """
@@ -232,11 +143,11 @@ def dias_Jtvec(self, v):
     # create the request stream
     jtvec_requests = {}
     jtvec_requests["request"] = 'jtvec'
-    jvec_requests["vector"] = v.tolist()
+    jtvec_requests["vector"] = v.tolist()
     tc = time.time()
     # get predicted data from workers
     worker_threads = []
-    results = [None] * len(worker_threads)
+    results = [None] * len(self.cluster_worker_ids)
     cnt_host = 0
     for address in self.cluster_worker_ids:
         p = Thread(target=workerRequest, args=(results, jtvec_requests, address, cnt_host))
@@ -253,8 +164,26 @@ def dias_Jtvec(self, v):
     # contruct the predicted data vector
     data = np.sum(np.vstack(results), axis=0)
 
+    return data
 
-Sim.Jtvec = dias_Jtvec
+Sim.Jtvec = dias_Jtvec_call
+
+
+def dias_Jtvec(self, m, v, f=None):
+        """
+        Compute adjoint sensitivity matrix (J^T) and vector (v) product.
+        """
+
+        self.model = m
+
+        if self.store_sensitivities:
+            J = self.getJ(m, f=f)
+            return np.asarray(J.T.dot(v))
+
+        return self._Jtvec(m, v=v, f=f)
+
+
+Sim.dias_Jtvec = dias_Jtvec
 
 
 def compute_J(self, f=None, Ainv=None):
@@ -358,7 +287,7 @@ def dias_dpred_call(self, m=None, f=None, compute_J=False):
 
     # get predicted data from workers
     worker_threads = []
-    results = [None] * len(worker_threads)
+    results = [None] * len(self.cluster_worker_ids)
     cnt_host = 0
 
     # create a thread for each worker
@@ -456,3 +385,4 @@ def dask_getSourceTerm(self):
 
 
 Sim.getSourceTerm = dask_getSourceTerm
+

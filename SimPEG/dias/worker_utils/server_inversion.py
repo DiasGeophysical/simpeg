@@ -6,6 +6,7 @@ import numpy as np
 
 import gc
 from SimPEG import (
+    dias,
     maps,
     utils,
     data_misfit,
@@ -29,10 +30,10 @@ import json
 import time
 import struct
 
-HOST = '192.168.1.220' 
+HOST = sys.argv[1] 
 SOCKET_LIST = []
 RECV_BUFFER = 160000
-PORT = 8001
+PORT = int(sys.argv[2])
 
 
 def initialize(tile_config):
@@ -188,12 +189,12 @@ def getJvec(inputs, local_misfit, fields, model):
     else:
         vec = model
 
-    return local_misfit.simulation.Jvec(vec,
+    return local_misfit.simulation.dias_Jvec(vec,
                            v=np.asarray(inputs['vector']),
                            f=fields)
 
 
-def getJTvec(inputs, local_misfit, fields, model):
+def getJtvec(inputs, local_misfit, fields, model):
     """
         Calculates local contribution to J^T * vector result (implicit form)
     """
@@ -204,7 +205,7 @@ def getJTvec(inputs, local_misfit, fields, model):
     else:
         vec = model
 
-    return local_misfit.simulation.Jtvec(vec, np.asarray(inputs['vector']), fields)
+    return local_misfit.simulation.dias_Jtvec(vec, np.asarray(inputs['vector']), fields)
 
 
 def recv_msg(sock):
@@ -348,6 +349,7 @@ def worker_server():
                 
                 # exception 
                 except:
+                    print("service break!", sys.exc_info()[0])
                     broadcast(server_socket, sock, "Client (%s, %s) is offline\n" % addr)
                     continue
 
@@ -363,7 +365,10 @@ def broadcast (server_socket, sock, message):
         # send the message only to peer
         if socket != server_socket:
             try :
-                socket.send(message.encode('utf-8'))
+                # construct final message that contains server instruction for size of data
+                msg = struct.pack('>I', len(message)) + message.encode('utf-8')
+
+                socket.sendall(msg)
             except :
                 # broken socket connection
                 socket.close()

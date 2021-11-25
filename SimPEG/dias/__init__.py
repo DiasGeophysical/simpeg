@@ -11,6 +11,7 @@ try:
     import SimPEG.dias.data_misfit
     import SimPEG.dias.optimization
     import SimPEG.dias.inverse_problem
+    import SimPEG.dias.worker_utils
 
 except ImportError as err:
     print("unable to load dias operations")
