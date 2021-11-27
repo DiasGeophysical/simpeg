@@ -3,7 +3,6 @@ import socket
 import select
 from SimPEG.inverse_problem import BaseInvProblem
 import numpy as np
-
 import gc
 from SimPEG import (
     dias,
@@ -18,7 +17,6 @@ from SimPEG import (
     objective_function,
     data
 )
-#from SimPEG import dask
 from SimPEG import maps
 import os
 from SimPEG.electromagnetics.static import resistivity as dc
@@ -38,11 +36,13 @@ PORT = int(sys.argv[2])
 
 def initialize(tile_config):
     """
+
         Method for initializing the tile for inversion. Creates a local
         data object and the local simulation to reduce computation time
         to global simulation
 
         input: configuration instruction for the local tile
+
     """
 
     # pull data from database and create local survey - (TODO make call from database for specific data and not use old python loader)
@@ -103,6 +103,33 @@ def initialize(tile_config):
 
     print('completed...')
 
+    
+    # check if percentile floor is requested
+    if tile_config["percentile_floor"] != -1:
+        eps = np.percentile(np.abs(local_survey.dobs), float(percentile_floor), interpolation='lower')
+    
+    # default to flat floor assignment
+    else:
+        eps = tile_config["eps"]
+
+    # most used typ of error
+    if tile_config["std_error"]:
+        uncert = abs(survey_dc.dobs *tile_config["std"]) + eps
+    
+    # check if geometric error if requested
+    elif tile_config["g_error"]:
+        G = DCutils.geometric_factor(survey_dc)
+        uncert = abs(survey_dc.dobs * ((1.0 / (G + 1e-10)) * 1e2)) + eps
+    
+    # check if dias data derived error requested
+    elif tile_config["dias_error"]:
+        uncert = abs(survey_dc.dobs * std_dc) + eps
+    
+    # default to 5% error
+    else:
+        uncert = abs(survey_dc.dobs * 0.05) + eps
+
+    
     # create the local map
     local_map = maps.TileMap(global_mesh, global_active, local_mesh)
 
@@ -148,6 +175,7 @@ def initialize(tile_config):
 
 def getPredictedData(inputs, local_misfit):
     """
+
         Calculates the predicted data for local simulation
 
         inputs: 
@@ -155,6 +183,7 @@ def getPredictedData(inputs, local_misfit):
 
         outputs:
         dpred = numpy array
+
     """
 
     time_dpred = time.time()
@@ -180,7 +209,9 @@ def getPredictedData(inputs, local_misfit):
 
 def getJvec(inputs, local_misfit, fields, model):
     """
+
         Calculates local contribution to J * vector result (implicit form)
+
     """
 
     # convert to local model size
@@ -196,7 +227,9 @@ def getJvec(inputs, local_misfit, fields, model):
 
 def getJtvec(inputs, local_misfit, fields, model):
     """
+
         Calculates local contribution to J^T * vector result (implicit form)
+
     """
 
     # convert to local model size
@@ -210,7 +243,9 @@ def getJtvec(inputs, local_misfit, fields, model):
 
 def recv_msg(sock):
     """
+
         Read message length and unpack it into an integer
+
     """
 
     raw_msglen = recvall(sock, 4)
@@ -226,7 +261,9 @@ def recv_msg(sock):
 
 def recvall(sock, n):
     """
+
         Helper function to recv n bytes or return None if EOF is hit
+
     """
     data = bytearray()
     
@@ -243,6 +280,7 @@ def recvall(sock, n):
 
 def worker_server():
     """
+
         Worker node server code. The server will handle the decoupled mesh and its 
         accompanying simulation.
 
@@ -358,7 +396,9 @@ def worker_server():
 
 def broadcast (server_socket, sock, message):
     """
+
         broadcast chat messages to all connected clients
+
     """
 
     for socket in SOCKET_LIST:
