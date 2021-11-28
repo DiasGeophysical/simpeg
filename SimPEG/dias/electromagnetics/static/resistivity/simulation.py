@@ -69,20 +69,22 @@ def dias_getJtJdiag(self, m, W=None):
 Sim.getJtJdiag = dias_getJtJdiag
 
 
-def dias_Jvec_call(self, v):
+def dias_deriv2_call(self, v):
     """
         Compute sensitivity matrix (J) and vector (v) product.
     """
 
     # create the request stream
     jvec_requests = {}
-    jvec_requests["request"] = 'jvec'
+    jvec_requests["request"] = 'deriv2'
     jvec_requests["vector"] = v.tolist()
     tc = time.time()
+    
     # get predicted data from workers
     worker_threads = []
     results = [None] * len(self.cluster_worker_ids)
     cnt_host = 0
+    
     for address in self.cluster_worker_ids:
         p = Thread(target=workerRequest, args=(results, jvec_requests, address, cnt_host))
         p.start()
@@ -96,10 +98,12 @@ def dias_Jvec_call(self, v):
         print(f"[INFO] thread completed in: {time.time()-tc} sec")
     print("joining complete")
     # contruct the predicted data vector
-    data = np.hstack(results)
+    data = np.sum(np.vstack(results), axis=0)
+
+    return data
 
 
-Sim.Jvec = dias_Jvec_call
+Sim.Jvec = dias_deriv2_call
 
 
 def dias_Jvec(self, m, v, f=None):
@@ -135,7 +139,7 @@ def dias_Jvec(self, m, v, f=None):
 Sim.dias_Jvec = dias_Jvec
 
 
-def dias_Jtvec_call(self, v):
+def dias_Jtvec_call(self):
     """
         Compute adjoint sensitivity matrix (J^T) and vector (v) product.
     """
@@ -143,12 +147,13 @@ def dias_Jtvec_call(self, v):
     # create the request stream
     jtvec_requests = {}
     jtvec_requests["request"] = 'jtvec'
-    jtvec_requests["vector"] = v.tolist()
     tc = time.time()
+    
     # get predicted data from workers
     worker_threads = []
     results = [None] * len(self.cluster_worker_ids)
     cnt_host = 0
+
     for address in self.cluster_worker_ids:
         p = Thread(target=workerRequest, args=(results, jtvec_requests, address, cnt_host))
         p.start()
@@ -336,8 +341,8 @@ def dias_dpred(self, m=None, f=None, compute_J=False):
         if f is None:
             if m is None:
                 m = self.model
-            f, Ainv = self.dias_fields(m, return_Ainv=compute_J)
-
+            f, Ainv = self.fields(m, return_Ainv=True)
+        self.Ainv = Ainv
         data = Data(self.survey)
         for src in self.survey.source_list:
             for rx in src.receiver_list:

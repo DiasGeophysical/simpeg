@@ -22,7 +22,7 @@ def dask_deriv(self, m, f=None):
     """
     Distributed :obj:`simpeg.data_misfit.L2DataMisfit.deriv`
     """
-    print("\n\n In misfit first? \n\n")
+    
     if getattr(self, "model_map", None) is not None:
         m = self.model_map @ m
 

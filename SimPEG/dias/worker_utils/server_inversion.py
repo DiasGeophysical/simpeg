@@ -20,6 +20,7 @@ from SimPEG import (
 )
 #from SimPEG import dask
 from SimPEG import maps
+from scipy.sparse import csr_matrix as csr
 import os
 from SimPEG.electromagnetics.static import resistivity as dc
 import DCIPtools as DCIP
@@ -38,11 +39,13 @@ PORT = int(sys.argv[2])
 
 def initialize(tile_config):
     """
+
         Method for initializing the tile for inversion. Creates a local
         data object and the local simulation to reduce computation time
         to global simulation
 
         input: configuration instruction for the local tile
+
     """
 
     # pull data from database and create local survey - (TODO make call from database for specific data and not use old python loader)
@@ -141,7 +144,7 @@ def initialize(tile_config):
     )
     local_misfit.W = 1 / local_survey.std
 
-    print('completed...')
+    print('completed...', local_survey.nD, local_misfit.simulation.mesh.nC, local_map.local_active.sum())
 
     return local_misfit
 
@@ -178,34 +181,60 @@ def getPredictedData(inputs, local_misfit):
     # return dpred
 
 
-def getJvec(inputs, local_misfit, fields, model):
+def getDeriv2(inputs, local_misfit, fields, model):
     """
+
         Calculates local contribution to J * vector result (implicit form)
+        
     """
+
+    v = np.asarray(inputs['vector'])
 
     # convert to local model size
     if local_misfit.model_map is not None:
         vec = local_misfit.model_map @ model
+        v = local_misfit.model_map.deriv(model) @ v
     else:
         vec = model
 
-    return local_misfit.simulation.dias_Jvec(vec,
-                           v=np.asarray(inputs['vector']),
-                           f=fields)
+    jvec = local_misfit.simulation.dias_Jvec(vec, v)
+    w_jvec = local_misfit.W.diagonal() ** 2.0 * jvec
+    jtwjvec = local_misfit.simulation.dias_Jtvec(vec, w_jvec)
+
+    if getattr(local_misfit, "model_map", None) is not None:
+        
+        h_vec = csr.dot(jtwjvec, local_misfit.model_map.deriv(vec))
+
+        return h_vec
+
+    return jtwjvec
 
 
-def getJtvec(inputs, local_misfit, fields, model):
+def getJtvec(v, local_misfit, fields, model):
     """
+
         Calculates local contribution to J^T * vector result (implicit form)
+
     """
 
     # convert to local model size
     if local_misfit.model_map is not None:
+
         vec = local_misfit.model_map @ model
+
     else:
+
         vec = model
 
-    return local_misfit.simulation.dias_Jtvec(vec, np.asarray(inputs['vector']), fields)
+    Jtvec = local_misfit.simulation.dias_Jtvec(vec, v, f=fields)
+
+    if getattr(local_misfit, "model_map", None) is not None:
+
+        h_vec = csr.dot(Jtvec, local_misfit.model_map.deriv(model))
+
+        return h_vec
+
+    return Jtvec
 
 
 def recv_msg(sock):
@@ -260,8 +289,9 @@ def worker_server():
     FIELDS = None
     LOCAL_MISFIT = None
     MODEL = None
+    RESIDUAL = None
  
-    print("v0.0.2 DIAS Worker server started on port " + str(PORT))
+    print("v0.0.4 DIAS Worker server started on port " + str(PORT))
  
     # run loop in infinite loop
     while 1:
@@ -308,6 +338,8 @@ def worker_server():
                             print("\n\n here in init \n\n")
                             
                             LOCAL_MISFIT = initialize(params)
+
+                            print("\n\n what now \n\n")
                             outputs["init"] = True
 
                             print("\n\n completed \n")
@@ -316,20 +348,26 @@ def worker_server():
                             # call dpred
                             print("\n\n here in dpred \n\n")
                             residual, FIELDS, MODEL = getPredictedData(params, LOCAL_MISFIT)
-                            outputs["residual"] = residual.tolist()
+                            phi_d = 0.5 * np.vdot(residual, residual)
+                            outputs["residual"] = phi_d
+                            RESIDUAL = residual
                             print("\n\n completed residuals \n\n")
 
                         elif request_type == 'jtvec':                           
                             # call jtvec
                             print("\n\n here in jtvec \n\n")
-                            out_data = getJtvec(params, LOCAL_MISFIT, FIELDS, MODEL)
+                            wtw_d = LOCAL_MISFIT.W.diagonal() ** 2.0 * RESIDUAL
+                            out_data = getJtvec(wtw_d, LOCAL_MISFIT, FIELDS, MODEL)
                             outputs["jtvec"] = out_data.tolist()
                             print("\n\n completed jtvec \n\n")
                         
-                        elif request_type == 'jvec':                            
+                        elif request_type == 'derive2':                            
                             # call jvec
-                            out_data = getJvec(params, LOCAL_MISFIT, FIELDS, MODEL)
-                            outputs["jvec"] = out_data.tolist()
+                            print("\n\n here in deriv2 \n\n")
+                            out_data = getDeriv2(params, LOCAL_MISFIT, FIELDS, MODEL)
+                            print("\n\n done deriv2 \n\n")
+                            outputs["deriv2"] = out_data.tolist()
+                            print("\n\n assigned deriv2 \n\n")
 
                         elif request_type == 'clean':                            
                             # call dpred

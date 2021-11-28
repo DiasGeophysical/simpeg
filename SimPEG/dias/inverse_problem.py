@@ -10,101 +10,11 @@ from ..data_misfit import BaseDataMisfit
 from ..objective_function import BaseObjectiveFunction
 
 
-def dask_getFields(self, m, store=False, deleteWarmstart=True):
-    f = None
+def dias_evalFunction(self, m, return_g=True, return_H=True):
+    """
 
-    try:
-        client = get_client()
-        fields = lambda f, x, workers: client.compute(f(x), workers=workers)
-    except:
-        fields = lambda f, x: f(x)
+        evalFunction(m, return_g=True, return_H=True)
 
-    for mtest, u_ofmtest in self.warmstart:
-        if m is mtest:
-            f = u_ofmtest
-            if self.debug:
-                print("InvProb is Warm Starting!")
-            break
-
-    if f is None:
-        if isinstance(self.dmisfit, BaseDataMisfit):
-
-            if self.dmisfit.model_map is not None:
-                vec = self.dmisfit.model_map @ m
-            else:
-                vec = m
-
-            f = fields(self.dmisfit.simulation.fields, vec)
-
-        elif isinstance(self.dmisfit, BaseObjectiveFunction):
-            f = []
-            for objfct in self.dmisfit.objfcts:
-                if hasattr(objfct, "simulation"):
-                    if objfct.model_map is not None:
-                        vec = objfct.model_map @ m
-                    else:
-                        vec = m
-
-                    f += [fields(objfct.simulation.fields, vec, objfct.workers)]
-                else:
-                    f += []
-
-    if isinstance(f, Future) or isinstance(f[0], Future):
-        f = client.gather(f)
-
-    if deleteWarmstart:
-        self.warmstart = []
-    if store:
-        self.warmstart += [(m, f)]
-
-    return f
-
-
-BaseInvProblem.getFields = dask_getFields
-
-
-def get_dpred(self, m, f=None, compute_J=False):
-    dpreds = []
-    client = get_client()
-
-    if isinstance(self.dmisfit, BaseDataMisfit):
-        return self.dmisfit.simulation.dpred(m)
-    elif isinstance(self.dmisfit, BaseObjectiveFunction):
-
-        for i, objfct in enumerate(self.dmisfit.objfcts):
-            if hasattr(objfct, "simulation"):
-                if objfct.model_map is not None:
-                    vec = objfct.model_map @ m
-                else:
-                    vec = m
-
-                future = client.compute(
-                    objfct.simulation.dpred(
-                        vec, compute_J=compute_J and (objfct.simulation._Jmatrix is None)
-                    ), workers=objfct.workers
-                )
-                dpreds += [future]
-
-            else:
-                dpreds += []
-
-    if isinstance(dpreds[0], Future):
-        dpreds = client.gather(dpreds)
-        preds = []
-        if isinstance(dpreds[0], tuple):  # Jmatrix was computed
-            for future, objfct in zip(dpreds, self.dmisfit.objfcts):
-                preds += [future[0]]
-                objfct.simulation._Jmatrix = future[1]
-
-            return preds
-    return dpreds
-
-
-BaseInvProblem.get_dpred = get_dpred
-
-
-def dask_evalFunction(self, m, return_g=True, return_H=True):
-    """evalFunction(m, return_g=True, return_H=True)
     """
 
     self.model = m
@@ -112,11 +22,11 @@ def dask_evalFunction(self, m, return_g=True, return_H=True):
 
     # call dpred on the worker machine and grab the residual too (this will be a list)  
     print("got residuals..")
-    residuals = self.dmisfit.simulation.dpred(m, compute_J=return_H)
+    phi_deez = self.dmisfit.simulation.dpred(m, compute_J=return_H)
 
     phi_d = 0
-    for residual in residuals:
-        phi_d += 0.5 * np.vdot(residual, residual)
+    for phi_sub_d in phi_deez:
+        phi_d += phi_sub_d
     print("calculated phi_d..")
     phi_d = np.asarray(phi_d)
     # print(self.dpred[0])
@@ -132,7 +42,7 @@ def dask_evalFunction(self, m, return_g=True, return_H=True):
     out = (phi,)
     if return_g:
         print("getting deriv..")
-        phi_dDeriv = self.dmisfit.deriv(residual)
+        phi_dDeriv = self.dmisfit.deriv()
         if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
             phi_mDeriv = self.reg2Deriv * self.reg._delta_m(m)
         else:
@@ -144,7 +54,7 @@ def dask_evalFunction(self, m, return_g=True, return_H=True):
     if return_H:
 
         def H_fun(v):
-            phi_d2Deriv = self.dmisfit.deriv2(m, v)
+            phi_d2Deriv = self.dmisfit.deriv2(v)
             if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
                 phi_m2Deriv = self.reg2Deriv * v
             else:
@@ -159,4 +69,4 @@ def dask_evalFunction(self, m, return_g=True, return_H=True):
     return out if len(out) > 1 else out[0]
 
 
-BaseInvProblem.evalFunction = dask_evalFunction
+BaseInvProblem.evalFunction = dias_evalFunction

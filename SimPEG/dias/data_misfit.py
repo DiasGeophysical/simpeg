@@ -6,7 +6,7 @@ from scipy.sparse import csr_matrix as csr
 from dask import delayed
 
 
-def dask_call(self, m, f=None):
+def dias_call(self, m, f=None):
     """
     Distributed :obj:`simpeg.data_misfit.L2DataMisfit.__call__`
     """
@@ -15,69 +15,29 @@ def dask_call(self, m, f=None):
     return self.client.compute(phi_d, workers=self.workers)
 
 
-L2DataMisfit.__call__ = dask_call
+L2DataMisfit.__call__ = dias_call
 
 
-def dask_deriv(self, residual):
+def dias_deriv(self):
     """
     Distributed :obj:`simpeg.data_misfit.L2DataMisfit.deriv`
     """
 
-    # if getattr(self, "model_map", None) is not None:
-    #     m = self.model_map @ m
+    Jtvec = self.simulation.Jtvec()
 
-    wtw_d = self.W.diagonal() ** 2.0 * residual
-    Jtvec = self.simulation.Jtvec(wtw_d)
-
-    # if getattr(self, "model_map", None) is not None:
-    #     Jtjvec_dmudm = delayed(csr.dot)(Jtvec, self.model_map.deriv(m))
-    #     h_vec = da.from_delayed(
-    #         Jtjvec_dmudm, dtype=float, shape=[self.model_map.deriv(m).shape[1]]
-    #     )
-    #     return self.client.compute(h_vec, workers=self.workers)
 
     return Jtvec
 
 
-L2DataMisfit.deriv = dask_deriv
+L2DataMisfit.deriv = dias_deriv
 
 
-def dask_deriv2(self, v):
+def dias_deriv2(self, v):
     """
     Distributed :obj:`simpeg.data_misfit.L2DataMisfit.deriv2`
     """
 
-    # if getattr(self, "model_map", None) is not None:
-    #     m = self.model_map @ m
-    #     v = self.model_map.deriv(m) @ v
-
-    jvec = self.simulation.Jvec(v)
-    w_jvec = self.W.diagonal() ** 2.0 * jvec
-    jtwjvec = self.simulation.Jtvec(w_jvec)
-
-    # if getattr(self, "model_map", None) is not None:
-    #     Jtjvec_dmudm = delayed(csr.dot)(jtwjvec, self.model_map.deriv(m))
-    #     h_vec = da.from_delayed(
-    #         Jtjvec_dmudm, dtype=float, shape=[self.model_map.deriv(m).shape[1]]
-    #     )
-    #     return self.client.compute(h_vec, workers=self.workers)
-
-    return jtwjvec
+    return self.simulation.dias_deriv2_call(v)
 
 
-L2DataMisfit.deriv2 = dask_deriv2
-
-
-def dask_residual(self, m, f=None):
-    if self.data is None:
-        raise Exception("data must be set before a residual can be calculated.")
-
-    if isinstance(f, Fields) or f is None:
-        return self.simulation.residual(m, self.data.dobs, f=f)
-    elif f.shape == self.data.dobs.shape:
-        return mkvc(f - self.data.dobs)
-    else:
-        raise Exception(f"Attribute f must be or type {Fields}, numpy.array or None.")
-
-
-L2DataMisfit.residual = dask_residual
+L2DataMisfit.deriv2 = dias_deriv2
