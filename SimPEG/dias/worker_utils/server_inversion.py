@@ -212,6 +212,7 @@ def getDeriv2(inputs, local_misfit, fields, model):
     """
 
         Calculates local contribution to J * vector result (implicit form)
+
     """
 
     v = np.asarray(inputs['vector'])
