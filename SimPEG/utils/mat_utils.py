@@ -158,7 +158,7 @@ def eigenvalue_by_power_iteration(combo_objfct, model, n_pw_iter=4, fields_list=
         x1 = 0.
         for j, (mult, obj) in enumerate(zip(combo_objfct.multipliers, combo_objfct.objfcts)):
             if hasattr(obj, "simulation"): # if data misfit term
-                aux = obj.deriv2(model, v=x0, f=fields_list[j])
+                aux = obj.deriv2(v=x0)
                 if isinstance(aux, Future):
                     aux = aux.result()
                 if not isinstance(aux, Zero):
@@ -173,13 +173,13 @@ def eigenvalue_by_power_iteration(combo_objfct, model, n_pw_iter=4, fields_list=
     eigenvalue=0.
     for j, (mult, obj) in enumerate(zip(combo_objfct.multipliers, combo_objfct.objfcts)):
         if hasattr(obj, "simulation"): # if data misfit term
-            aux = obj.deriv2(model, v=x0, f=fields_list[j])
+            aux = obj.deriv2(v=x0)
             if isinstance(aux, Future):
                 aux = aux.result()
 
             eigenvalue += mult * x0.dot(aux)
         else:
-            eigenvalue += mult * x0.dot(obj.deriv2(model, v=x0,))
+            eigenvalue += mult * x0.dot(obj.deriv2(v=x0))
 
     return eigenvalue
 

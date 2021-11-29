@@ -107,7 +107,7 @@ def initialize(tile_config):
     
     # check if percentile floor is requested
     if tile_config["percentile_floor"] != -1:
-        eps = np.percentile(np.abs(local_survey.dobs), float(percentile_floor), interpolation='lower')
+        eps = np.percentile(np.abs(local_survey.dobs), float(tile_config["percentile_floor"]), interpolation='lower')
     
     # default to flat floor assignment
     else:
@@ -115,21 +115,20 @@ def initialize(tile_config):
 
     # most used typ of error
     if tile_config["std_error"]:
-        uncert = abs(survey_dc.dobs *tile_config["std"]) + eps
+        uncert = abs(local_survey.dobs *tile_config["std"]) + eps
     
     # check if geometric error if requested
     elif tile_config["g_error"]:
-        G = DCutils.geometric_factor(survey_dc)
-        uncert = abs(survey_dc.dobs * ((1.0 / (G + 1e-10)) * 1e2)) + eps
+        G = DCutils.geometric_factor(local_survey)
+        uncert = abs(local_survey.dobs * ((1.0 / (G + 1e-10)) * 1e2)) + eps
     
     # check if dias data derived error requested
     elif tile_config["dias_error"]:
-        uncert = abs(survey_dc.dobs * std_dc) + eps
+        uncert = abs(local_survey.std) + eps
     
     # default to 5% error
     else:
-        uncert = abs(survey_dc.dobs * 0.05) + eps
-
+        uncert = abs(local_survey.dobs * 0.05) + eps
     
     # create the local map
     local_map = maps.TileMap(global_mesh, global_active, local_mesh)
@@ -155,6 +154,8 @@ def initialize(tile_config):
     expmap.mesh = None
 
     simulation.sensitivity_path = './sensitivity/Tile' + str(tile_id) + '/'
+
+    init_model = np.ones(actmap.nP) * np.log(1. / tile_config["model"])
     
     # set the data object
     data_object = data.Data(
@@ -171,7 +172,7 @@ def initialize(tile_config):
 
     print('completed...', local_survey.nD, local_misfit.simulation.mesh.nC, local_map.local_active.sum())
 
-    return local_misfit
+    return local_misfit, init_model
 
 
 def getPredictedData(inputs, local_misfit):
@@ -216,17 +217,22 @@ def getDeriv2(inputs, local_misfit, fields, model):
     """
 
     v = np.asarray(inputs['vector'])
-
+    print('[INFO] made V from json')
     # convert to local model size
     if local_misfit.model_map is not None:
         vec = local_misfit.model_map @ model
+        print('[INFO] made map')
         v = local_misfit.model_map.deriv(model) @ v
+        print('[INFO] made V')
     else:
         vec = model
 
     jvec = local_misfit.simulation.dias_Jvec(vec, v)
+    print('[INFO] made jvec')
     w_jvec = local_misfit.W.diagonal() ** 2.0 * jvec
+    print('[INFO] made wjvec')
     jtwjvec = local_misfit.simulation.dias_Jtvec(vec, w_jvec)
+    print('[INFO] made all')
 
     if getattr(local_misfit, "model_map", None) is not None:
         
@@ -369,7 +375,7 @@ def worker_server():
                             # call initialization
                             print("\n\n here in init \n\n")
                             
-                            LOCAL_MISFIT = initialize(params)
+                            LOCAL_MISFIT, MODEL = initialize(params)
 
                             print("\n\n what now \n\n")
                             outputs["init"] = True
@@ -393,7 +399,7 @@ def worker_server():
                             outputs["jtvec"] = out_data.tolist()
                             print("\n\n completed jtvec \n\n")
                         
-                        elif request_type == 'derive2':                            
+                        elif request_type == 'deriv2':                            
                             # call jvec
                             print("\n\n here in deriv2 \n\n")
                             out_data = getDeriv2(params, LOCAL_MISFIT, FIELDS, MODEL)

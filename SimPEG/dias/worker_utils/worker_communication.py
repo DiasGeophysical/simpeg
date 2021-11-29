@@ -111,7 +111,7 @@ def workerRequest(outputs, simlite, host, index):
                             print("\n\n Assigned residuals to outputs")
 
                         # check if jvec data is being sent back
-                        elif "jvec" in data.decode('utf-8'):                    
+                        elif "deriv2" in data.decode('utf-8'):                    
                             server_response = json.loads(data.decode('utf-8'))
                             
                             # assign the data
