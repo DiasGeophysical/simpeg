@@ -84,8 +84,6 @@ def dias_deriv2_call(self, v):
     worker_threads = []
     results = [None] * len(self.cluster_worker_ids)
     cnt_host = 0
-
-    print("helloooooooo!!!!!!!!  ", len(results), len(self.cluster_worker_ids))
     
     for address in self.cluster_worker_ids:
         p = Thread(target=workerRequest, args=(results, jvec_requests, address, cnt_host))

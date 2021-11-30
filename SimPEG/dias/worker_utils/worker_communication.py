@@ -115,7 +115,7 @@ def workerRequest(outputs, simlite, host, index):
                             server_response = json.loads(data.decode('utf-8'))
                             
                             # assign the data
-                            outputs[index] = np.asarray(server_response["jvec"])
+                            outputs[index] = np.asarray(server_response["deriv2"])
                             listening = False
 
                         # check if jvec data is being sent back

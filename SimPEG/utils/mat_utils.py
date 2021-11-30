@@ -140,16 +140,16 @@ def eigenvalue_by_power_iteration(combo_objfct, model, n_pw_iter=4, fields_list=
     if fields_list is None:
         fields_list = []
         for k, obj in enumerate(combo_objfct.objfcts):
-            if hasattr(obj, "simulation"):
-                if getattr(obj, "model_map", None) is None:
-                    fields_list += [obj.simulation.fields(model)]
-                else:
-                    fields_list += [obj.simulation.fields(obj.model_map * model)]
-            else:
+            # if hasattr(obj, "simulation"):
+            #     if getattr(obj, "model_map", None) is None:
+            #         fields_list += [obj.simulation.fields(model)]
+            #     else:
+            #         fields_list += [obj.simulation.fields(obj.model_map * model)]
+            # else:
                 # required to put None to conserve it in the list
                 # The idea is that the function can have a mixed of dmis and reg terms
                 # (see test)
-                fields_list += [None]
+            fields_list += [None]
     elif not isinstance(fields_list, (list, tuple, np.ndarray)):
             fields_list = [fields_list]
 
@@ -164,7 +164,7 @@ def eigenvalue_by_power_iteration(combo_objfct, model, n_pw_iter=4, fields_list=
                 if not isinstance(aux, Zero):
                     x1 += mult * aux
             else:
-                aux = obj.deriv2(model, v=x0)
+                aux = obj.deriv2(v=x0)
                 if not isinstance(aux, Zero):
                     x1 += mult * aux
         x0 = x1 / np.linalg.norm(x1)

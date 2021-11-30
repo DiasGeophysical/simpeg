@@ -155,7 +155,7 @@ def initialize(tile_config):
 
     simulation.sensitivity_path = './sensitivity/Tile' + str(tile_id) + '/'
 
-    init_model = np.ones(actmap.nP) * np.log(1. / tile_config["model"])
+    init_model = np.ones(global_active.sum()) * np.log(1. / tile_config["model"])
     
     # set the data object
     data_object = data.Data(
@@ -227,20 +227,25 @@ def getDeriv2(inputs, local_misfit, fields, model):
     else:
         vec = model
 
-    jvec = local_misfit.simulation.dias_Jvec(vec, v)
+    if fields is None:
+        fields, Ainv = local_misfit.simulation.fields(vec, return_Ainv=True)
+        local_misfit.simulation.Ainv = Ainv
+
+    
+    jvec = local_misfit.simulation.dias_Jvec(vec, v, f=fields)
     print('[INFO] made jvec')
     w_jvec = local_misfit.W.diagonal() ** 2.0 * jvec
     print('[INFO] made wjvec')
-    jtwjvec = local_misfit.simulation.dias_Jtvec(vec, w_jvec)
+    jtwjvec = local_misfit.simulation.dias_Jtvec(vec, w_jvec, f=fields)
     print('[INFO] made all')
 
     if getattr(local_misfit, "model_map", None) is not None:
         
         h_vec = csr.dot(jtwjvec, local_misfit.model_map.deriv(vec))
 
-        return h_vec
+        return h_vec, fields
 
-    return jtwjvec
+    return jtwjvec, fields
 
 
 def getJtvec(v, local_misfit, fields, model):
@@ -402,7 +407,7 @@ def worker_server():
                         elif request_type == 'deriv2':                            
                             # call jvec
                             print("\n\n here in deriv2 \n\n")
-                            out_data = getDeriv2(params, LOCAL_MISFIT, FIELDS, MODEL)
+                            out_data, FIELDS = getDeriv2(params, LOCAL_MISFIT, FIELDS, MODEL)
                             print("\n\n done deriv2 \n\n")
                             outputs["deriv2"] = out_data.tolist()
                             print("\n\n assigned deriv2 \n\n")
