@@ -168,7 +168,7 @@ def initialize(tile_config):
     local_misfit = data_misfit.L2DataMisfit(
         data=data_object, simulation=simulation, model_map=local_map
     )
-    local_misfit.W = 1 / local_survey.std
+    local_misfit.W = 1 / uncert
 
     print('completed...', local_survey.nD, local_misfit.simulation.mesh.nC, local_map.local_active.sum())
 
@@ -218,6 +218,7 @@ def getDeriv2(inputs, local_misfit, fields, model):
 
     v = np.asarray(inputs['vector'])
     print('[INFO] made V from json')
+    
     # convert to local model size
     if local_misfit.model_map is not None:
         vec = local_misfit.model_map @ model
@@ -231,7 +232,6 @@ def getDeriv2(inputs, local_misfit, fields, model):
         fields, Ainv = local_misfit.simulation.fields(vec, return_Ainv=True)
         local_misfit.simulation.Ainv = Ainv
 
-    
     jvec = local_misfit.simulation.dias_Jvec(vec, v, f=fields)
     print('[INFO] made jvec')
     w_jvec = local_misfit.W.diagonal() ** 2.0 * jvec
@@ -376,7 +376,10 @@ def worker_server():
                         outputs = {}
 
                         # check request type and execute
-                        if request_type == 'init':                            
+                        if request_type == 'init':
+
+                            # reset all the global variables
+                            LOCAL_MISFIT, FIELDS, MODEL, RESIDUAL = None, None, None, None
                             # call initialization
                             print("\n\n here in init \n\n")
                             
@@ -387,16 +390,17 @@ def worker_server():
 
                             print("\n\n completed \n")
 
-                        elif request_type == 'dpred':                            
+                        elif request_type == 'dpred':
                             # call dpred
                             print("\n\n here in dpred \n\n")
+                            MODEL = None
                             residual, FIELDS, MODEL = getPredictedData(params, LOCAL_MISFIT)
                             phi_d = 0.5 * np.vdot(residual, residual)
                             outputs["residual"] = phi_d
                             RESIDUAL = residual
                             print("\n\n completed residuals \n\n")
 
-                        elif request_type == 'jtvec':                           
+                        elif request_type == 'jtvec':
                             # call jtvec
                             print("\n\n here in jtvec \n\n")
                             wtw_d = LOCAL_MISFIT.W.diagonal() ** 2.0 * RESIDUAL
@@ -404,7 +408,7 @@ def worker_server():
                             outputs["jtvec"] = out_data.tolist()
                             print("\n\n completed jtvec \n\n")
                         
-                        elif request_type == 'deriv2':                            
+                        elif request_type == 'deriv2':
                             # call jvec
                             print("\n\n here in deriv2 \n\n")
                             out_data, FIELDS = getDeriv2(params, LOCAL_MISFIT, FIELDS, MODEL)
@@ -412,7 +416,7 @@ def worker_server():
                             outputs["deriv2"] = out_data.tolist()
                             print("\n\n assigned deriv2 \n\n")
 
-                        elif request_type == 'clean':                            
+                        elif request_type == 'clean':
                             # call dpred
                             outputs["cleaned"] = clearLocalSimulation(params)
 

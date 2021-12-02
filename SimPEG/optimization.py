@@ -410,7 +410,7 @@ class Minimize(object):
                             objfct.simulation._Jmatrix = None
                         if hasattr(objfct.simulation, "gtgdiag"):
                             objfct.simulation.gtgdiag = None
-
+            print("passing updated model: ", xt[0:10])
             self.f, self.g, self.H = evalFunction(xt, return_g=True, return_H=True)
             self.doEndIteration(xt)
             self.printIter()

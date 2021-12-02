@@ -42,7 +42,7 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     out = (phi,)
     if return_g:
         print("getting deriv..")
-        phi_dDeriv = self.dmisfit.deriv()
+        phi_dDeriv = self.dmisfit.deriv(m, f=None)
         if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
             phi_mDeriv = self.reg2Deriv * self.reg._delta_m(m)
         else:
@@ -54,7 +54,7 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     if return_H:
 
         def H_fun(v):
-            phi_d2Deriv = self.dmisfit.deriv2(v)
+            phi_d2Deriv = self.dmisfit.deriv2(m, v)
             if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
                 phi_m2Deriv = self.reg2Deriv * v
             else:

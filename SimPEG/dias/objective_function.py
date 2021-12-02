@@ -6,8 +6,7 @@ import shutil
 import numpy as np
 from dask.distributed import Future, get_client, Client
 
-
-def dask_call(self, m, f=None):
+def dias_call(self, m, f=None):
     fcts = []
     multipliers = []
     for i, phi in enumerate(self):
@@ -42,10 +41,10 @@ def dask_call(self, m, f=None):
         ).squeeze()
 
 
-ComboObjectiveFunction.__call__ = dask_call
+ComboObjectiveFunction.__call__ = dias_call
 
 
-def dias_deriv(self, residual):
+def dias_deriv(self, m, f=None):
     """
     First derivative of the composite objective function is the sum of the
     derivatives of each objective function in the list, weighted by their
@@ -54,7 +53,7 @@ def dias_deriv(self, residual):
     :param numpy.ndarray m: model
     :param SimPEG.Fields f: Fields object (if applicable)
     """
-
+    print("\n\n In obj first? \n\n")
     g = []
     multipliers = []
     for i, phi in enumerate(self):
@@ -63,23 +62,37 @@ def dias_deriv(self, residual):
             continue
         else:
 
-            fct = objfct.deriv(residual)
-            
-            fct = da.multiply(multiplier, fct)
-            
-            g += [fct]
+            if f is not None and objfct._has_fields:
+                fct = objfct.deriv(m, f=f[i])
+            else:
+                fct = objfct.deriv(m)
+
+            if isinstance(fct, Future):
+                future = self.client.compute(
+                    self.client.submit(da.multiply, multiplier, fct)
+                )
+                g += [future]
+            else:
+                g += [fct]
 
             multipliers += [multiplier]
 
-    return np.sum(
-        np.r_[multipliers][:, None] * np.vstack(g), axis=0
-    ).squeeze()
+    if isinstance(g[0], Future):
+        big_future = self.client.submit(
+            da.sum, self.client.submit(da.vstack, g), axis=0
+        ).result()
+        return self.client.compute(big_future).result()
+
+    else:
+        return np.sum(
+            np.r_[multipliers][:, None] * np.vstack(g), axis=0
+        ).squeeze()
 
 
 ComboObjectiveFunction.deriv = dias_deriv
 
 
-def dias_deriv2(self, v=None):
+def dias_deriv2(self, m, v=None, f=None):
     """
     Second derivative of the composite objective function is the sum of the
     second derivatives of each objective function in the list, weighted by
@@ -97,18 +110,35 @@ def dias_deriv2(self, v=None):
         if multiplier == 0.0:  # don't evaluate the fct
             continue
         else:
-            fct = objfct.deriv2(v)
 
-            fct = da.multiply(multiplier, fct)
-            H += [fct]
+            # if f is not None and objfct._has_fields:
+            #     fct = objfct.deriv2(m, v, f=f[i])
+            # else:
+                # print('[info] doing derive no fields')
+            fct = objfct.deriv2(m, v)
+
+            if isinstance(fct, Future):
+                future = self.client.compute(
+                    self.client.submit(da.multiply, multiplier, fct)
+                )
+                H += [future]
+            else:
+                H += [fct]
 
             multipliers += [multiplier]
 
-    phi_deriv2 = 0
-    for multiplier, h in zip(multipliers, H):
-        phi_deriv2 += multiplier * h
+    if isinstance(H[0], Future):
+        big_future = self.client.submit(
+            da.sum, self.client.submit(da.vstack, H), axis=0
+        ).result()
+        return self.client.compute(big_future).result()
 
-    return phi_deriv2
+    else:
+        phi_deriv2 = 0
+        for multiplier, h in zip(multipliers, H):
+            phi_deriv2 += multiplier * h
+
+        return phi_deriv2
 
 
 ComboObjectiveFunction.deriv2 = dias_deriv2

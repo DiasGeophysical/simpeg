@@ -18,7 +18,7 @@ def dias_call(self, m, f=None):
 L2DataMisfit.__call__ = dias_call
 
 
-def dias_deriv(self):
+def dias_deriv(self, m, f=None):
     """
     Distributed :obj:`simpeg.data_misfit.L2DataMisfit.deriv`
     """
@@ -32,7 +32,7 @@ def dias_deriv(self):
 L2DataMisfit.deriv = dias_deriv
 
 
-def dias_deriv2(self, v):
+def dias_deriv2(self, m, v, f=None):
     """
     Distributed :obj:`simpeg.data_misfit.L2DataMisfit.deriv2`
     """
