@@ -2,7 +2,7 @@ from __future__ import division
 import numpy as np
 from scipy.constants import mu_0, pi, epsilon_0
 from scipy.special import erf
-from SimPEG import utils
+from ... import utils
 
 omega = lambda f: 2.0 * np.pi * f
 # TODO:
