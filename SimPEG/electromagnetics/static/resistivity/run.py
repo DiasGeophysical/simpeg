@@ -1,6 +1,6 @@
 import numpy as np
 
-from SimPEG import (
+from .... import (
     maps,
     optimization,
     inversion,

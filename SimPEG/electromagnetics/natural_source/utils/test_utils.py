@@ -5,7 +5,7 @@ from __future__ import division
 import numpy as np
 
 import discretize
-from SimPEG import maps, mkvc, utils, Data
+from .... import maps, mkvc, utils, Data
 from ....utils import meshTensor
 from ..receivers import Point1DImpedance, Point3DImpedance, Point3DTipper, Point3DComplexResistivity
 #     rxList.append(ns.Rx.Point3DComplexResistivity(locations=None,locations_e=rx_loc, locations_h=rx_loc, orientation=rx_orientation, component='phase'))

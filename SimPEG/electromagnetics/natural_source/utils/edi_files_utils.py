@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 # Functions to import and export MT EDI files.
-from SimPEG import mkvc
+from ....utils import mkvc
 from scipy.constants import mu_0
 from numpy.lib import recfunctions as recFunc
 from .data_utils import rec_to_ndarr

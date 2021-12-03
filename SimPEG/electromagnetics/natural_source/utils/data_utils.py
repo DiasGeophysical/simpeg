@@ -8,15 +8,15 @@ import numpy.lib.recfunctions as recFunc
 from scipy.constants import mu_0
 from scipy import interpolate as sciint
 
-import SimPEG as simpeg
-from SimPEG.electromagnetics.natural_source.survey import Survey, Data
-from SimPEG.electromagnetics.natural_source.receivers import (
+from ....utils import mkvc
+from ..survey import Survey, Data
+from ..receivers import (
     Point1DImpedance,
     Point3DImpedance,
     Point3DTipper,
 )
-from SimPEG.electromagnetics.natural_source.sources import Planewave_xy_1Dprimary
-from SimPEG.electromagnetics.natural_source.utils import (
+from ..sources import Planewave_xy_1Dprimary
+from ..utils import (
     analytic_1d,
     plot_data_types as pDt,
 )
@@ -259,8 +259,8 @@ def convert3Dto1Dobject(NSEMdata, rxType3D="yx"):
     for loc in uniLocs:
         # Make the receiver list
         rx1DList = []
-        rx1DList.append(Point1DImpedance(simpeg.mkvc(loc, 2).T, "real"))
-        rx1DList.append(Point1DImpedance(simpeg.mkvc(loc, 2).T, "imag"))
+        rx1DList.append(Point1DImpedance(mkvc(loc, 2).T, "real"))
+        rx1DList.append(Point1DImpedance(mkvc(loc, 2).T, "imag"))
         # Source list
         locrecData = recData[
             np.sqrt(
@@ -403,10 +403,10 @@ def plotMT1DModelData(problem, models, symList=None):
         # Appphs
         pDt.plotIsoStaImpedance(axP, loc, data1D, "zyx", "phs", pColor=col)
         try:
-            allData = np.concatenate((allData, simpeg.mkvc(data1D["zyx"], 2)), 1)
+            allData = np.concatenate((allData, mkvc(data1D["zyx"], 2)), 1)
         except:
-            allData = simpeg.mkvc(data1D["zyx"], 2)
-    freq = simpeg.mkvc(data1D["freq"], 2)
+            allData = mkvc(data1D["zyx"], 2)
+    freq = mkvc(data1D["freq"], 2)
     res, phs = appResPhs(freq, allData)
 
     if False:

@@ -14,7 +14,7 @@ from ..utils import drapeTopotoLoc
 from . import receivers as Rx
 from . import sources as Src
 from ..utils import static_utils
-from SimPEG import data
+from .... import data
 
 import warnings
 
