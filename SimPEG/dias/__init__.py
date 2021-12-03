@@ -1,17 +1,17 @@
 try:
-    import SimPEG.dias.simulation
-    import SimPEG.dias.electromagnetics.static.resistivity.simulation
-    import SimPEG.dias.electromagnetics.static.resistivity.receivers
-    import SimPEG.dias.electromagnetics.static.induced_polarization.simulation
-    import SimPEG.dias.electromagnetics.frequency_domain.simulation
+    from ..dias import simulation
+    from ..dias.electromagnetics.static.resistivity import simulation
+    from ..dias.electromagnetics.static.resistivity import receivers
+    from ..dias.electromagnetics.static.induced_polarization import simulation
+    from ..dias.electromagnetics.frequency_domain import simulation
     # import SimPEG.dias.potential_fields.base
     # import SimPEG.dias.potential_fields.gravity.simulation
     # import SimPEG.dias.potential_fields.magnetics.simulation
-    import SimPEG.dias.objective_function
-    import SimPEG.dias.data_misfit
-    import SimPEG.dias.optimization
-    import SimPEG.dias.inverse_problem
-    import SimPEG.dias.worker_utils
+    from ..dias import objective_function
+    from ..dias import data_misfit
+    from ..dias import optimization
+    from ..dias import inverse_problem
+    from ..dias import worker_utils
 
 except ImportError as err:
     print("unable to load dias operations")
