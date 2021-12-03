@@ -29,7 +29,6 @@ def dias_fields(self, m=None, return_Ainv=False):
     if m is not None:
         self.model = m
 
-
     A = self.getA()
     Ainv = self.solver(A, **self.solver_opts)
     RHS = self.getRHS()

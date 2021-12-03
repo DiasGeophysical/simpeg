@@ -5,7 +5,7 @@ import properties
 
 from .. import props
 from .. import utils
-from SimPEG.utils.code_utils import deprecate_property
+from ..utils.code_utils import deprecate_property
 
 ###############################################################################
 #                                                                             #
