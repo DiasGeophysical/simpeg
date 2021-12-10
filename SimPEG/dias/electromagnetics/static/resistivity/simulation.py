@@ -68,128 +68,6 @@ def dias_getJtJdiag(self, m, W=None):
 Sim.getJtJdiag = dias_getJtJdiag
 
 
-def dias_deriv2_call(self, v):
-    """
-        Compute sensitivity matrix (J) and vector (v) product.
-    """
-
-    # create the request stream
-    jvec_requests = {}
-    jvec_requests["request"] = 'deriv2'
-    jvec_requests["vector"] = v.tolist()
-    tc = time.time()
-    
-    # get predicted data from workers
-    worker_threads = []
-    results = [None] * len(self.cluster_worker_ids)
-    cnt_host = 0
-    
-    for address in self.cluster_worker_ids:
-        p = Thread(target=workerRequest, args=(results, jvec_requests, address, cnt_host))
-        p.start()
-        worker_threads += [p]
-        cnt_host += 1
-
-    # join the threads to retrieve data
-    for thread_ in worker_threads:
-        print("joining .......................")
-        thread_.join()
-        print(f"[INFO] thread completed in: {time.time()-tc} sec")
-    print("joining complete")
-    # contruct the predicted data vector
-    data = np.sum(np.vstack(results), axis=0)
-
-    return data
-
-
-Sim.dias_deriv2_call = dias_deriv2_call
-
-
-def dias_Jvec(self, m, v, f=None):
-        """
-        Compute sensitivity matrix (J) and vector (v) product.
-        """
-
-        if self.store_sensitivities:
-            J = self.getJ(m, f=f)
-            return J.dot(v)
-
-        self.model = m
-
-        if self._mini_survey is not None:
-            survey = self._mini_survey
-        else:
-            survey = self.survey
-
-        Jv = []
-        for source in survey.source_list:
-            u_source = f[source, self._solutionType]  # solution vector
-            dA_dm_v = self.getADeriv(u_source, v)
-            dRHS_dm_v = self.getRHSDeriv(source, v)
-            du_dm_v = self.Ainv * (-dA_dm_v + dRHS_dm_v)
-            for rx in source.receiver_list:
-                df_dmFun = getattr(f, "_{0!s}Deriv".format(rx.projField), None)
-                df_dm_v = df_dmFun(source, du_dm_v, v, adjoint=False)
-                Jv.append(rx.evalDeriv(source, self.mesh, f, df_dm_v))
-        Jv = np.hstack(Jv)
-        return self._mini_survey_data(Jv)
-
-
-Sim.dias_Jvec = dias_Jvec
-
-
-def dias_Jtvec_call(self):
-    """
-        Compute adjoint sensitivity matrix (J^T) and vector (v) product.
-    """
-
-    # create the request stream
-    jtvec_requests = {}
-    jtvec_requests["request"] = 'jtvec'
-    tc = time.time()
-    
-    # get predicted data from workers
-    worker_threads = []
-    results = [None] * len(self.cluster_worker_ids)
-    cnt_host = 0
-
-    for address in self.cluster_worker_ids:
-        p = Thread(target=workerRequest, args=(results, jtvec_requests, address, cnt_host))
-        p.start()
-        worker_threads += [p]
-        cnt_host += 1
-
-    # join the threads to retrieve data
-    for thread_ in worker_threads:
-        print("joining .......................")
-        thread_.join()
-        print(f"[INFO] thread completed in: {time.time()-tc} sec")
-
-    # contruct the predicted data vector
-    data = np.sum(np.vstack(results), axis=0)
-
-    return data
-
-Sim.Jtvec = dias_Jtvec_call
-
-
-def dias_Jtvec(self, m, v, f=None):
-        """
-        Compute adjoint sensitivity matrix (J^T) and vector (v) product.
-        """
-
-        self.model = m
-
-        if self.store_sensitivities:
-            J = self.getJ(m, f=f)
-            return np.asarray(J.T.dot(v))
-
-        return self._Jtvec(m, v=v, f=f)
-
-
-Sim.dias_Jtvec = dias_Jtvec
-
-
 def compute_J(self, f=None, Ainv=None):
 
     if f is None:
@@ -262,60 +140,6 @@ def compute_J(self, f=None, Ainv=None):
 Sim.compute_J = compute_J
 
 
-# This could technically be handled by dask.simulation, but doesn't seem to register
-def dias_dpred_call(self, m=None, f=None, compute_J=False):
-    """
-    dpred(m, f=None)
-    Create the projected data from a model.
-    The fields, f, (if provided) will be used for the predicted data
-    instead of recalculating the fields (which may be expensive!).
-
-    .. math::
-
-        d_\\text{pred} = P(f(m))
-
-    Where P is a projection of the fields onto the data space.
-    """
-    if self.survey is None:
-        raise AttributeError(
-            "The survey has not yet been set and is required to compute "
-            "data. Please set the survey for the simulation: "
-            "simulation.survey = survey"
-        )
-    tc = time.time()
-    # create the request stream
-    dpred_requests = {}
-    dpred_requests["request"] = 'dpred'
-    dpred_requests["compute_j"] = False
-    dpred_requests["model"] = m.tolist()
-
-    # get predicted data from workers
-    worker_threads = []
-    results = [None] * len(self.cluster_worker_ids)
-    cnt_host = 0
-
-    # create a thread for each worker
-    for address in self.cluster_worker_ids:
-        p = Thread(target=workerRequest, args=(results, dpred_requests, address, cnt_host))
-        p.start()
-        worker_threads += [p]
-        cnt_host += 1
-
-    # join the threads to retrieve data
-    for thread_ in worker_threads:
-        print("joining .......................")
-        thread_.join()
-        print(f"[INFO] thread completed in: {time.time()-tc} sec")
-
-    # contruct the predicted data vector
-    data = np.hstack(results)
-
-    return mkvc(data)
-
-
-Sim.dpred = dias_dpred_call
-
-
 def dias_dpred(self, m=None, f=None, compute_J=False):
         """
         dpred(m, f=None)
@@ -353,7 +177,7 @@ def dias_dpred(self, m=None, f=None, compute_J=False):
 
         return mkvc(data), f
 
-Sim.dias_dpred = dias_dpred
+Sim.dpred = dias_dpred
 
 
 def dask_getSourceTerm(self):

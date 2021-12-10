@@ -44,7 +44,6 @@ def recvall(sock, n):
     
     return data
 
-
 def workerRequest(outputs, simlite, host, index):
     """
         A basic method for handling worker communications
@@ -72,7 +71,7 @@ def workerRequest(outputs, simlite, host, index):
         while listening:
             
             #create the socket list
-            socket_list = [s]
+            socket_list = [0, s]
 
             # Get the list sockets which are readable
             ready_to_read,ready_to_write,in_error = select.select(socket_list , [], [])
@@ -120,11 +119,11 @@ def workerRequest(outputs, simlite, host, index):
                             listening = False
 
                         # check if jvec data is being sent back
-                        elif "jtvec" in data.decode('utf-8'):                    
+                        elif "deriv" in data.decode('utf-8'):                    
                             server_response = json.loads(data.decode('utf-8'))
                             
                             # assign the data
-                            outputs[index] = np.asarray(server_response["jtvec"])
+                            outputs[index] = np.asarray(server_response["deriv"])
                             listening = False
             
         # close the socket
