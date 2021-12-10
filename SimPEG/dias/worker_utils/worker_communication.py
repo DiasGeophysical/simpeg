@@ -71,7 +71,7 @@ def workerRequest(outputs, simlite, host, index):
         while listening:
             
             #create the socket list
-            socket_list = [0, s]
+            socket_list = [s]
 
             # Get the list sockets which are readable
             ready_to_read,ready_to_write,in_error = select.select(socket_list , [], [])
