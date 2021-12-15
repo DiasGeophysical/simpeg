@@ -1,23 +1,11 @@
 from .....electromagnetics.static.resistivity.simulation import BaseDCSimulation as Sim
 from .....utils import Zero, mkvc
 from .....data import Data
-from ....utils import compute_chunk_sizes
-from ....worker_utils.worker_communication import workerRequest
-import dask
 import dask.array as da
 from dask.distributed import Future
 import numpy as np
 import zarr
-import os
-import shutil
 import numcodecs
-import json
-from threading import Thread, local 
-import socket
-import select
-import struct
-import time
-import sys
 
 numcodecs.blosc.use_threads = False
 
