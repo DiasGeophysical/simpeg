@@ -17,7 +17,7 @@ import select
 import struct
 import time
 import sys
-from .worker_utils.worker_communication import workerRequest
+from .worker_utils.worker_communication import worker_request
 import numpy as np
 
 
@@ -48,7 +48,7 @@ def get_dpred(self, m, f=None, compute_J=False):
 
     # create a thread for each worker
     for address in self.dmisfit.simulation.cluster_worker_ids:
-        p = Thread(target=workerRequest, args=(results, dpred_requests, address, cnt_host))
+        p = Thread(target=worker_request, args=(results, dpred_requests, address, cnt_host))
         p.start()
         worker_threads += [p]
         cnt_host += 1
@@ -85,11 +85,10 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     phi_d = 0
     for phi_sub_d in phi_deez:
         phi_d += phi_sub_d
-    print("calculated phi_d..")
-    print("\n\n phi_d: ", phi_d)
+
     phi_d = np.asarray(phi_d)
     self.reg2Deriv = self.reg.deriv2(m)
-    # reg = np.linalg.norm(self.reg2Deriv * self.reg._delta_m(m))
+
     phi_m = self.reg(m)
 
     self.phi_d, self.phi_d_last = phi_d, self.phi_d
@@ -99,8 +98,9 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     out = (phi,)
 
     if return_g:
-        print("getting deriv..")
+
         phi_dDeriv = self.dmisfit.deriv(m, f=None)
+
         if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
             phi_mDeriv = self.reg2Deriv * self.reg._delta_m(m)
         else:

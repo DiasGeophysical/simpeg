@@ -44,7 +44,8 @@ def recvall(sock, n):
     
     return data
 
-def workerRequest(outputs, simlite, host, index):
+
+def worker_request(outputs, simlite, host, index):
     """
         A basic method for handling worker communications
     """
@@ -70,7 +71,7 @@ def workerRequest(outputs, simlite, host, index):
         listening = True
         while listening:
             
-            #create the socket list
+            # create the socket list
             socket_list = [s]
 
             # Get the list sockets which are readable
@@ -82,17 +83,16 @@ def workerRequest(outputs, simlite, host, index):
                     data = recv_msg(sock)
 
                     if not data :
-                        print('\nDisconnected from chat server')
+                        print('\nDisconnected from chat server \n')
                     
                     # check what came back from server
                     else :
-                        print("rx data and checking: ", data.decode('utf-8')[:25])
                         
                         # check if initialization is confirmed
                         if "init" in data.decode('utf-8'):
                             server_response = json.loads(data.decode('utf-8'))
 
-                            if server_response["init"] == True:
+                            if server_response["init"]:
                                 listening = False
                                 
                                 # assign confirmation
@@ -100,15 +100,13 @@ def workerRequest(outputs, simlite, host, index):
                         
                         # check if predicted data is being sent back
                         elif "residual" in data.decode('utf-8'):
-                            print("in residuals to store")
+
                             server_response = json.loads(data.decode('utf-8'))
-                            print("converted to json")
-                            print(len(outputs), index)
+
                             # assign the data
                             outputs[index] = np.asarray(server_response["residual"])
-                            print("outputs assigned")
+
                             listening = False
-                            print("\n\n Assigned residuals to outputs")
 
                         # check if jvec data is being sent back
                         elif "deriv2" in data.decode('utf-8'):                    
@@ -129,6 +127,6 @@ def workerRequest(outputs, simlite, host, index):
         # close the socket
         s.close()
 
-    except:
-        print("break!", sys.exc_info()[0])
+    except Exception as err:
+        print(f"break! {sys.exc_info()[0]} Error message: {err}")
         print("connection to worker failed")

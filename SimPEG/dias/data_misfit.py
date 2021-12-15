@@ -1,18 +1,7 @@
 from ..data_misfit import L2DataMisfit
-from ..fields import Fields
-from ..utils import mkvc
-import dask.array as da
-from scipy.sparse import csr_matrix as csr
-from dask import delayed
-import time
-import json
 from threading import Thread, local
-import socket
-import select
-import struct
 import time
-import sys
-from .worker_utils.worker_communication import workerRequest
+from .worker_utils.worker_communication import worker_request
 import numpy as np
 
 
@@ -31,7 +20,7 @@ def dias_deriv(self, m, f=None):
     cnt_host = 0
 
     for address in self.simulation.cluster_worker_ids:
-        p = Thread(target=workerRequest, args=(results, deriv_requests, address, cnt_host))
+        p = Thread(target=worker_request, args=(results, deriv_requests, address, cnt_host))
         p.start()
         worker_threads += [p]
         cnt_host += 1
@@ -42,7 +31,7 @@ def dias_deriv(self, m, f=None):
         thread_.join()
         print(f"[INFO] thread completed in: {time.time()-tc} sec")
 
-    # contruct the predicted data vector
+    # construct the predicted data vector
     data = np.sum(np.vstack(results), axis=0)
 
     return data
@@ -68,7 +57,7 @@ def dias_deriv2(self, m, v, f=None):
     cnt_host = 0
     
     for address in self.simulation.cluster_worker_ids:
-        p = Thread(target=workerRequest, args=(results, deriv2_requests, address, cnt_host))
+        p = Thread(target=worker_request, args=(results, deriv2_requests, address, cnt_host))
         p.start()
         worker_threads += [p]
         cnt_host += 1
