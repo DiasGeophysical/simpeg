@@ -22,8 +22,7 @@ def dias_deriv(self, m, f=None):
     """
 
     # create the request stream
-    deriv_requests = {}
-    deriv_requests["request"] = 'deriv'
+    deriv_requests = {"request": 'deriv'}
     tc = time.time()
     
     # get predicted data from workers
@@ -58,9 +57,9 @@ def dias_deriv2(self, m, v, f=None):
     """
     
     # create the request stream
-    deriv2_requests = {}
-    deriv2_requests["request"] = 'deriv2'
-    deriv2_requests["vector"] = v.tolist()
+    deriv2_requests = {"request": 'deriv2',
+                       "vector": v.tolist(),
+                       "model": m.tolist()}
     tc = time.time()
     
     # get predicted data from workers
@@ -80,7 +79,7 @@ def dias_deriv2(self, m, v, f=None):
         thread_.join()
         print(f"[INFO] thread completed in: {time.time()-tc} sec")
     print("joining complete")
-    # contruct the predicted data vector
+    # construct the predicted data vector
     data = np.sum(np.vstack(results), axis=0)
 
     return data

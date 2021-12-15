@@ -37,10 +37,9 @@ def get_dpred(self, m, f=None, compute_J=False):
 
     tc = time.time()
     # create the request stream
-    dpred_requests = {}
-    dpred_requests["request"] = 'dpred'
-    dpred_requests["compute_j"] = False
-    dpred_requests["model"] = m.tolist()
+    dpred_requests = {"request": 'dpred',
+                      "compute_j": False,
+                      "model": m.tolist()}
 
     # get predicted data from workers
     worker_threads = []
@@ -76,19 +75,12 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
 
     """
 
-    # x0 = np.ones(*m.shape)
-    # phi_d2Deriv = self.dmisfit.deriv2(m,x0)
+    self.model = m
+    gc.collect()
 
-    # self.model = m
-    # gc.collect()
-
-    # return phi_d2Deriv
-
-    # call dpred on the worker machine and grab the residual too (this will be a list)  
+    # call dpred on the worker machine and grab the residual too (this will be a list)
     print("get residuals..")
     phi_deez = self.get_dpred(m, compute_J=return_H)
-
-    # return phi_deez
 
     phi_d = 0
     for phi_sub_d in phi_deez:
@@ -96,7 +88,6 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     print("calculated phi_d..")
     print("\n\n phi_d: ", phi_d)
     phi_d = np.asarray(phi_d)
-    # print(self.dpred[0])
     self.reg2Deriv = self.reg.deriv2(m)
     # reg = np.linalg.norm(self.reg2Deriv * self.reg._delta_m(m))
     phi_m = self.reg(m)
@@ -105,8 +96,8 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     self.phi_m, self.phi_m_last = phi_m, self.phi_m
 
     phi = phi_d + self.beta * phi_m
-
     out = (phi,)
+
     if return_g:
         print("getting deriv..")
         phi_dDeriv = self.dmisfit.deriv(m, f=None)
@@ -116,21 +107,25 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
             phi_mDeriv = self.reg.deriv(m)
 
         g = np.asarray(phi_dDeriv) + self.beta * phi_mDeriv
-        print("\n\n g: ", g, "\n\n")
+
         out += (g,)
 
     if return_H:
 
         def H_fun(v):
-            phi_d2Deriv = self.dmisfit.deriv2(m, v, f=None)
-            print("\n\n H: ", phi_d2Deriv, "\n\n")
-            phi_m2Deriv = self.reg.deriv2(m, v=v)
+            phi_d2Deriv = self.dmisfit.deriv2(m, v)
+            if hasattr(self.reg.objfcts[0], "space") and self.reg.objfcts[0].space == "spherical":
+                phi_m2Deriv = self.reg2Deriv * v
+            else:
+                phi_m2Deriv = self.reg.deriv2(m, v=v)
 
-            return phi_d2Deriv + self.beta * phi_m2Deriv
-        
-        H = sp.linalg.LinearOperator((m.size, m.size), H_fun, dtype=m.dtype)
+            H = phi_d2Deriv + self.beta * phi_m2Deriv
+
+            return H
+
+        H = H_fun
         out += (H,)
-        
+
     return out if len(out) > 1 else out[0]
 
 

@@ -9,7 +9,7 @@ try:
     # import SimPEG.dias.potential_fields.magnetics.simulation
     # from ..dias import objective_function
     from ..dias import data_misfit
-    # from ..dias import optimization
+    from ..dias import optimization
     from ..dias import inverse_problem
     from ..dias import worker_utils
 
