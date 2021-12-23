@@ -58,7 +58,7 @@ def worker_request(outputs, simlite, host, index):
     
     # create client socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(2)
+    s.settimeout(20)
 
     # connect to remote host
     try :
