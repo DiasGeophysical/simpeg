@@ -3,6 +3,7 @@ from threading import Thread, local
 import time
 from .worker_utils.worker_communication import worker_request
 import numpy as np
+import logging
 
 
 def dias_deriv(self, m, f=None):
@@ -27,9 +28,9 @@ def dias_deriv(self, m, f=None):
 
     # join the threads to retrieve data
     for thread_ in worker_threads:
-        print("joining .......................")
+        logging.info("joining 1st derivative.......................")
         thread_.join()
-        print(f"[INFO] thread completed in: {time.time()-tc} sec")
+        logging.info(f"thread completed in: {time.time()-tc} sec")
 
     # construct the predicted data vector
     data = np.sum(np.vstack(results), axis=0)
@@ -64,10 +65,10 @@ def dias_deriv2(self, m, v, f=None):
 
     # join the threads to retrieve data
     for thread_ in worker_threads:
-        print("joining .......................")
+        logging.info("joining 2nd derivative.......................")
         thread_.join()
-        print(f"[INFO] thread completed in: {time.time()-tc} sec")
-    print("joining complete")
+        logging.info(f"thread completed in: {time.time()-tc} sec")
+    logging.info("joining complete")
     # construct the predicted data vector
     data = np.sum(np.vstack(results), axis=0)
 

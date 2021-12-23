@@ -10,6 +10,61 @@ import shutil
 import numpy as np
 
 
+def dias_fields(self, m=None):
+
+    f = self.fieldsPair(self)
+
+    A = self.getA()
+
+    self.Ainv = self.solver(A, **self.solver_opts)
+
+    RHS = self.getRHS()
+
+    Srcs = self.survey.source_list
+
+    f[Srcs, self._solutionType] = self.Ainv * RHS
+
+    if not self._dc_data_set:
+        # loop through receivers to check if they need to set the _dc_voltage
+        for src in self.survey.source_list:
+            for rx in src.receiver_list:
+                if (
+                        rx.data_type == "apparent_chargeability"
+                        and rx._dc_voltage is None
+                ):
+                    rx.data_type = "volt"  # make the rx evaluate a voltage
+                    rx._dc_voltage = rx.eval(src, self.mesh, f)
+                    rx.data_type = "apparent_chargeability"
+                    rx._Ps = {}
+        self._dc_data_set = True  # avoid loop through after first call
+
+    return f
+
+
+Sim.fields = dias_fields
+
+
+def dias_dpred(self, m=None, f=None):
+    """
+        Predicted data.
+
+        .. math::
+
+            d_\\text{pred} = Pf(m)
+
+    """
+
+    if f is None:
+        f = self.fields(m)
+
+    predicted = self.forward(m, f=f)
+
+    return predicted, f
+
+
+Sim.dpred = dias_dpred
+
+
 def dask_getJ(self, m, f=None):
     """
         Generate Full sensitivity matrix

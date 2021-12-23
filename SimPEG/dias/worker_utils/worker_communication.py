@@ -3,12 +3,12 @@ import numpy as np
 import shutil
 import numcodecs
 import json
-from threading import Thread, local 
 import socket
 import select
 import struct
 import time
 import sys
+import logging
 
 numcodecs.blosc.use_threads = False
 
@@ -83,7 +83,7 @@ def worker_request(outputs, simlite, host, index):
                     data = recv_msg(sock)
 
                     if not data :
-                        print('\nDisconnected from chat server \n')
+                        logging.warning('Disconnected from chat server')
                     
                     # check what came back from server
                     else :
@@ -128,5 +128,5 @@ def worker_request(outputs, simlite, host, index):
         s.close()
 
     except Exception as err:
-        print(f"break! {sys.exc_info()[0]} Error message: {err}")
-        print("connection to worker failed")
+        logging.error(f"break! {sys.exc_info()[0]} Error message: {err}")
+        logging.error("connection to worker failed")

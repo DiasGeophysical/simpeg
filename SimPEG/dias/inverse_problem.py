@@ -1,24 +1,16 @@
 from ..inverse_problem import BaseInvProblem
 from ..utils import Zero, mkvc
 import numpy as np
-import scipy.sparse as sp
-from dask import delayed
-from dask.distributed import Future, get_client
-import dask.array as da
 import gc
 from ..regularization import BaseComboRegularization, Sparse
 from ..data_misfit import BaseDataMisfit
 from ..objective_function import BaseObjectiveFunction
 import time
-import json
 from threading import Thread, local
-import socket
-import select
-import struct
 import time
 import sys
 from .worker_utils.worker_communication import worker_request
-import numpy as np
+import logging
 
 
 def get_dpred(self, m, f=None, compute_J=False):
@@ -55,11 +47,11 @@ def get_dpred(self, m, f=None, compute_J=False):
 
     # join the threads to retrieve data
     for thread_ in worker_threads:
-        print("joining .......................")
+        logging.info("joining predicted data call.......................")
         thread_.join()
-        print(f"[INFO] thread completed in: {time.time()-tc} sec")
+        logging.info(f"[INFO] thread completed in: {time.time()-tc} sec")
 
-    # contruct the predicted data vector
+    # construct the predicted data vector
     data = np.hstack(results)
 
     return mkvc(data)
@@ -79,7 +71,7 @@ def dias_evalFunction(self, m, return_g=True, return_H=True):
     gc.collect()
 
     # call dpred on the worker machine and grab the residual too (this will be a list)
-    print("get residuals..")
+    logging.info("get residuals..")
     phi_deez = self.get_dpred(m, compute_J=return_H)
 
     phi_d = 0
