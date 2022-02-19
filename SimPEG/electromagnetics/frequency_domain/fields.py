@@ -346,17 +346,10 @@ class Fields3DElectricField(FieldsFDEM):
         :return: primary electric field as defined by the sources
         """
 
-        n_fields = sum(src._fields_per_source for src in source_list)
-        ePrimary = np.zeros([self.simulation.mesh.nE, n_fields], dtype=complex)
-        i = 0
-        for src in source_list:
-            ii = i + src._fields_per_source
+        ePrimary = np.zeros([self.simulation.mesh.nE, len(source_list)], dtype=complex)
+        for i, src in enumerate(source_list):
             ep = src.ePrimary(self.simulation)
-            if not isinstance(ep, Zero) and ep.ndim == 1:
-                ep = ep[:, None]
-            ePrimary[:, i:ii] = ePrimary[:, i:ii] + ep
-            i = ii
-
+            ePrimary[:, i] = ePrimary[:, i] + ep
         return ePrimary
 
     def _eSecondary(self, eSolution, source_list):
@@ -416,14 +409,9 @@ class Fields3DElectricField(FieldsFDEM):
             [self._edgeCurl.shape[0], eSolution.shape[1]], dtype=complex
         )
 
-        i = 0
-        for src in source_list:
-            ii = i + src._fields_per_source
+        for i, src in enumerate(source_list):
             bp = src.bPrimary(self.simulation)
-            if not isinstance(bp, Zero) and bp.ndim == 1:
-                bp = bp[:, None]
-            bPrimary[:, i:ii] = bPrimary[:, i:ii] + bp
-            i = ii
+            bPrimary[:, i] = bPrimary[:, i] + bp
         return bPrimary
 
     def _bSecondary(self, eSolution, source_list):
@@ -438,16 +426,10 @@ class Fields3DElectricField(FieldsFDEM):
 
         C = self._edgeCurl
         b = C * eSolution
-        i = 0
-        for src in source_list:
-            ii = i + src._fields_per_source
-            b[:, i:ii] *= -1.0 / (
-                1j * omega(src.frequency)
-            )  # freq depends on the source
+        for i, src in enumerate(source_list):
+            b[:, i] *= -1.0 / (1j * omega(src.frequency))  # freq depends on the source
             s_m = src.s_m(self.simulation)
-            if not isinstance(s_m, Zero) and s_m.ndim == 1:
-                s_m = s_m[:, None]
-            b[:, i:ii] = b[:, i:ii] + 1.0 / (1j * omega(src.frequency)) * s_m
+            b[:, i] = b[:, i] + 1.0 / (1j * omega(src.frequency)) * s_m
         return b
 
     def _bDeriv_u(self, src, du_dm_v, adjoint=False):
@@ -810,7 +792,7 @@ class Fields3DMagneticFluxDensity(FieldsFDEM):
         """
 
         n = int(self._aveE2CCV.shape[0] / self._nC)  # number of components
-        VI = sdiag(np.kron(np.ones(n), 1.0 / self.simulation.mesh.cell_volumes))
+        VI = sdiag(np.kron(np.ones(n), 1.0 / self.simulation.mesh.vol))
 
         j = self._edgeCurl.T * (self._MfMui * bSolution)
 
@@ -1537,21 +1519,21 @@ class Fields3DMagneticField(FieldsFDEM):
 ############
 # Deprecated
 ############
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Fields3D_e(Fields3DElectricField):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Fields3D_b(Fields3DMagneticFluxDensity):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Fields3D_j(Fields3DCurrentDensity):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Fields3D_h(Fields3DMagneticField):
     pass

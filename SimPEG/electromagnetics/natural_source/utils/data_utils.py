@@ -9,14 +9,14 @@ from scipy.constants import mu_0
 from scipy import interpolate as sciint
 
 from ....utils import mkvc
-from ..survey import Survey, Data
-from ..receivers import (
+from ....electromagnetics.natural_source.survey import Survey, Data
+from ....electromagnetics.natural_source.receivers import (
     Point1DImpedance,
     Point3DImpedance,
     Point3DTipper,
 )
-from ..sources import Planewave_xy_1Dprimary
-from ..utils import (
+from ....electromagnetics.natural_source.sources import Planewave_xy_1Dprimary
+from ....electromagnetics.natural_source.utils import (
     analytic_1d,
     plot_data_types as pDt,
 )
@@ -70,7 +70,7 @@ def extract_data_info(NSEMdata):
     for src in NSEMdata.survey.source_list:
         for rx in src.receiver_list:
             dL.append(NSEMdata[src, rx])
-            freqL.append(np.ones(rx.nD) * src.freq)
+            freqL.append(np.ones(rx.nD) * src.frequency)
             if isinstance(rx, Point3DImpedance):
                 rxTL.extend((("z" + rx.orientation + " ") * rx.nD).split())
             if isinstance(rx, Point3DTipper):
@@ -97,7 +97,7 @@ def resample_data(NSEMdata, locs="All", freqs="All", rxs="All", verbose=False):
     """
 
     # Initiate new objects
-    new_srcList = []
+    new_source_list = []
     data_list = []
     std_list = []
     floor_list = []
@@ -111,7 +111,7 @@ def resample_data(NSEMdata, locs="All", freqs="All", rxs="All", verbose=False):
         raise IOError("Incorrect input type for locs. \n" + "Can be 'All' or ndarray ")
     # Sort out input frequencies
     if freqs == "All":
-        frequencies = NSEMdata.survey.freqs
+        frequencies = NSEMdata.survey.frequencies
     elif isinstance(freqs, np.ndarray):
         frequencies = freqs
     elif isinstance(freqs, list):
@@ -140,8 +140,8 @@ def resample_data(NSEMdata, locs="All", freqs="All", rxs="All", verbose=False):
 
     # Filter the data
     for src in NSEMdata.survey.source_list:
-        if src.freq in frequencies:
-            new_rxList = []
+        if src.frequency in frequencies:
+            new_receiver_list = []
             for rx in src.receiver_list:
                 if rx_comp is True or np.any(
                     [
@@ -192,7 +192,9 @@ def resample_data(NSEMdata, locs="All", freqs="All", rxs="All", verbose=False):
                         )
                         new_locs = rx.locations[ind_loc, :]
                     new_rx = type(rx)
-                    new_rxList.append(new_rx(new_locs, rx.orientation, rx.component))
+                    new_receiver_list.append(
+                        new_rx(new_locs, rx.orientation, rx.component)
+                    )
                     data_list.append(NSEMdata[src, rx][ind_loc])
                     try:
                         std_list.append(NSEMdata.relative_error[src, rx][ind_loc])
@@ -202,9 +204,9 @@ def resample_data(NSEMdata, locs="All", freqs="All", rxs="All", verbose=False):
                             print("No standard deviation or floor assigned")
 
             new_src = type(src)
-            new_srcList.append(new_src(new_rxList, src.freq))
+            new_source_list.append(new_src(new_receiver_list, src.frequency))
 
-    survey = Survey(new_srcList)
+    survey = Survey(new_source_list)
     if std_list or floor_list:
         return Data(
             survey,
@@ -259,8 +261,8 @@ def convert3Dto1Dobject(NSEMdata, rxType3D="yx"):
     for loc in uniLocs:
         # Make the receiver list
         rx1DList = []
-        rx1DList.append(Point1DImpedance(mkvc(loc, 2).T, "real"))
-        rx1DList.append(Point1DImpedance(mkvc(loc, 2).T, "imag"))
+        rx1DList.append(Point1DImpedance(simpeg.mkvc(loc, 2).T, "real"))
+        rx1DList.append(Point1DImpedance(simpeg.mkvc(loc, 2).T, "imag"))
         # Source list
         locrecData = recData[
             np.sqrt(
@@ -313,8 +315,12 @@ def rec_to_ndarr(rec_arr, data_type=float):
     """
     # fix for numpy >= 1.16.0 with masked arrays
     # https://numpy.org/devdocs/release/1.16.0-notes.html#multi-field-views-return-a-view-instead-of-a-copy
-    return np.array(recFunc.structured_to_unstructured(recFunc.repack_fields(rec_arr[list(rec_arr.dtype.names)])),
-                    dtype=data_type)
+    return np.array(
+        recFunc.structured_to_unstructured(
+            recFunc.repack_fields(rec_arr[list(rec_arr.dtype.names)])
+        ),
+        dtype=data_type,
+    )
 
 
 def makeAnalyticSolution(mesh, model, elev, freqs):
@@ -393,7 +399,7 @@ def plotMT1DModelData(problem, models, symList=None):
         meshPts = np.concatenate(
             (problem.mesh.gridN[0:1], np.kron(problem.mesh.gridN[1::], np.ones(2))[:-1])
         )
-        modelPts = np.kron(1.0 / (problem.sigmaMap * model), np.ones(2,))
+        modelPts = np.kron(1.0 / (problem.sigmaMap * model), np.ones(2,),)
         axM.semilogx(modelPts, meshPts, color=col)
 
         ## Data

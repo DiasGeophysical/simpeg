@@ -1,7 +1,7 @@
 try:
     # from ..dias import simulation
     from ..dias.electromagnetics.static.resistivity import simulation
-    from ..dias.electromagnetics.static.resistivity import receivers
+    # from ..dias.electromagnetics.static.resistivity import receivers
     from ..dias.electromagnetics.static.induced_polarization import simulation
     from ..dias.electromagnetics.frequency_domain import simulation
     # import SimPEG.dias.potential_fields.base

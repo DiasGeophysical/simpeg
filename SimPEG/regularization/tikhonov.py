@@ -54,7 +54,7 @@ class SimpleSmall(BaseRegularization):
         Weighting matrix
         """
         if self.cell_weights is not None:
-            return utils.sdiag(np.sqrt(self.cell_weights))
+            return utils.sdiag(np.sqrt(self.cell_weights * self.regmesh.vol))
         elif self._nC_residual != "*":
             return sp.eye(self._nC_residual)
         else:
@@ -122,16 +122,16 @@ class SimpleSmoothDeriv(BaseRegularization):
         )
         if self.cell_weights is not None:
 
-            W = utils.sdiag((Ave * (self.cell_weights)) ** 0.5) * W
+            W = utils.sdiag((Ave * (self.cell_weights * self.regmesh.vol)) ** 0.5) * W
         else:
-            W = utils.sdiag((Ave * self.regmesh.cell_volumes) ** 0.5) * W
+            W = utils.sdiag((Ave * self.regmesh.vol) ** 0.5) * W
 
         return W
 
     @property
     def length_scales(self):
         """
-            Normalized cell based weighting
+        Normalized cell based weighting
 
         """
         if getattr(self, "_length_scales", None) is None:
@@ -266,8 +266,8 @@ class Small(BaseRegularization):
         Weighting matrix
         """
         if self.cell_weights is not None:
-            return utils.sdiag(np.sqrt(self.regmesh.cell_volumes * self.cell_weights))
-        return utils.sdiag(np.sqrt(self.regmesh.cell_volumes))
+            return utils.sdiag(np.sqrt(self.regmesh.vol * self.cell_weights))
+        return utils.sdiag(np.sqrt(self.regmesh.vol))
 
 
 class SmoothDeriv(BaseRegularization):
@@ -324,7 +324,7 @@ class SmoothDeriv(BaseRegularization):
         Weighting matrix that constructs the first spatial derivative stencil
         in the specified orientation
         """
-        vol = self.regmesh.cell_volumes.copy()
+        vol = self.regmesh.vol.copy()
         if self.cell_weights is not None:
             vol *= self.cell_weights
 
@@ -381,7 +381,7 @@ class SmoothDeriv2(BaseRegularization):
         Weighting matrix that takes the second spatial derivative in the
         specified orientation
         """
-        vol = self.regmesh.cell_volumes.copy()
+        vol = self.regmesh.vol.copy()
         if self.cell_weights is not None:
             vol *= self.cell_weights
 

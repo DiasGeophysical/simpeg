@@ -1,11 +1,9 @@
 import numpy as np
 from ...potential_fields.base import BasePFSimulation as Sim
-from ...potential_fields.gravity.simulation import evaluate_integral
 import os
 from dask import delayed, array, config
 from dask.diagnostics import ProgressBar
 from ..utils import compute_chunk_sizes
-from dask.distributed import get_client, Future, Client
 
 Sim._chunk_format = "equal"
 
@@ -26,10 +24,8 @@ def chunk_format(self, other):
 Sim.chunk_format = chunk_format
 
 
-def linear_operator(self):
+def dask_linear_operator(self):
     self.nC = self.modelMap.shape[0]
-
-    hx, hy, hz = self.mesh.h[0].min(), self.mesh.h[1].min(), self.mesh.h[2].min()
 
     n_data_comp = len(self.survey.components)
     components = np.array(list(self.survey.components.keys()))
@@ -37,13 +33,10 @@ def linear_operator(self):
         [np.c_[values] for values in self.survey.components.values()]
     ).tolist()
 
-    client = get_client()
-
-    Xn, Yn, Zn = client.scatter([self.Xn, self.Yn, self.Zn], workers=self.workers)
-    row = delayed(evaluate_integral, pure=True)
+    row = delayed(self.evaluate_integral, pure=True)
     rows = [
         array.from_delayed(
-            row(Xn, Yn, Zn, hx, hy, hz, receiver_location, components[component]),
+            row(receiver_location, components[component]),
             dtype=np.float32,
             shape=(n_data_comp, self.nC),
         )
@@ -71,7 +64,7 @@ def linear_operator(self):
         stack = stack.rechunk({0: -1, 1: "auto"})
 
     if self.store_sensitivities == "disk":
-        sens_name = self.sensitivity_path
+        sens_name = self.sensitivity_path + "sensitivity.zarr"
         if os.path.exists(sens_name):
             kernel = array.from_zarr(sens_name)
             if np.all(
@@ -84,65 +77,24 @@ def linear_operator(self):
                 # Check that loaded kernel matches supplied data and mesh
                 print("Zarr file detected with same shape and chunksize ... re-loading")
                 return kernel
-
-        print("Writing Zarr file to disk")
-
-        # with ProgressBar():
-        print("Saving kernel to zarr: " + sens_name)
-
-        kernel = array.to_zarr(
-                stack, sens_name,
-                compute=True, return_stored=True, overwrite=True
-        )
-        return kernel
-
+        else:
+            print("Writing Zarr file to disk")
+            with ProgressBar():
+                print("Saving kernel to zarr: " + sens_name)
+                kernel = array.to_zarr(
+                    stack, sens_name, compute=True, return_stored=True, overwrite=True
+                )
     elif self.store_sensitivities == "forward_only":
-        # with ProgressBar():
-        print("Forward calculation: ")
-        pred = stack @ self.model.astype(np.float32)
+        with ProgressBar():
+            print("Forward calculation: ")
+            pred = (stack @ self.model).compute()
         return pred
-
-    with ProgressBar():
-        print("Computing sensitivities to local ram")
-        kernel = array.asarray(stack.compute())
-
+    else:
+        print(stack.chunks)
+        with ProgressBar():
+            print("Computing sensitivities to local ram")
+            kernel = array.asarray(stack.compute())
     return kernel
 
 
-Sim.linear_operator = linear_operator
-
-
-@property
-def Jmatrix(self):
-    if getattr(self, "_Jmatrix", None) is None:
-        client = get_client()
-        self._Jmatrix = client.compute(
-                delayed(self.linear_operator)(),
-            workers=self.workers
-        )
-    elif isinstance(self._Jmatrix, Future):
-        client = get_client()
-        self._Jmatrix = client.gather(self._Jmatrix)
-
-    return self._Jmatrix
-
-
-Sim.Jmatrix = Jmatrix
-
-
-def dask_dpred(self, m=None, f=None, compute_J=False):
-    if m is not None:
-        self.model = m
-    if f is not None:
-        return f
-    return self.fields(self.model)
-
-
-Sim.dpred = dask_dpred
-
-
-def dask_residual(self, m, dobs, f=None):
-    return self.dpred(m, f=f) - dobs
-
-
-Sim.residual = dask_residual
+Sim.linear_operator = dask_linear_operator

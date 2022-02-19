@@ -1,7 +1,6 @@
 from __future__ import print_function
 import unittest
 import SimPEG.dask
-from dask.distributed import Client
 from SimPEG import (
     directives,
     maps,
@@ -24,7 +23,7 @@ import numpy as np
 
 class MagInvLinProblemTest(unittest.TestCase):
     def setUp(self):
-        client = Client()
+
         np.random.seed(0)
 
         # First we need to define the direction of the inducing field
@@ -105,7 +104,7 @@ class MagInvLinProblemTest(unittest.TestCase):
             survey=survey,
             chiMap=idenMap,
             actInd=actv,
-            store_sensitivities="disk",
+            store_sensitivities="ram",
         )
         self.sim = sim
         data = sim.make_synthetic_data(
@@ -152,22 +151,22 @@ class MagInvLinProblemTest(unittest.TestCase):
         mrec = self.inv.run(self.model * 1e-4)
 
         residual = np.linalg.norm(mrec - self.model) / np.linalg.norm(self.model)
-        print(residual)
-        import matplotlib.pyplot as plt
-        plt.figure()
-        ax = plt.subplot(1, 2, 1)
-        midx = 65
-        self.mesh.plotSlice(self.actvMap*mrec, ax=ax, normal='Y', ind=midx,
-                       grid=True, clim=(0, 0.02))
-        ax.set_xlim(self.mesh.gridCC[:, 0].min(), self.mesh.gridCC[:, 0].max())
-        ax.set_ylim(self.mesh.gridCC[:, 2].min(), self.mesh.gridCC[:, 2].max())
+        # print(residual)
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # ax = plt.subplot(1, 2, 1)
+        # midx = 65
+        # self.mesh.plotSlice(self.actvMap*mrec, ax=ax, normal='Y', ind=midx,
+        #                grid=True, clim=(0, 0.02))
+        # ax.set_xlim(self.mesh.gridCC[:, 0].min(), self.mesh.gridCC[:, 0].max())
+        # ax.set_ylim(self.mesh.gridCC[:, 2].min(), self.mesh.gridCC[:, 2].max())
 
-        ax = plt.subplot(1, 2, 2)
-        self.mesh.plotSlice(self.actvMap*self.model, ax=ax, normal='Y', ind=midx,
-                       grid=True, clim=(0, 0.02))
-        ax.set_xlim(self.mesh.gridCC[:, 0].min(), self.mesh.gridCC[:, 0].max())
-        ax.set_ylim(self.mesh.gridCC[:, 2].min(), self.mesh.gridCC[:, 2].max())
-        plt.show()
+        # ax = plt.subplot(1, 2, 2)
+        # self.mesh.plotSlice(self.actvMap*self.model, ax=ax, normal='Y', ind=midx,
+        #                grid=True, clim=(0, 0.02))
+        # ax.set_xlim(self.mesh.gridCC[:, 0].min(), self.mesh.gridCC[:, 0].max())
+        # ax.set_ylim(self.mesh.gridCC[:, 2].min(), self.mesh.gridCC[:, 2].max())
+        # plt.show()
 
         self.assertLess(residual, 1)
         # self.assertTrue(residual < 0.05)

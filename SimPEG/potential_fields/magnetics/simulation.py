@@ -16,6 +16,7 @@ from SimPEG import Solver
 from SimPEG import props
 import properties
 from SimPEG.utils import mkvc, mat_utils, sdiag, setKwargs
+from SimPEG.utils.code_utils import deprecate_property
 
 
 class Simulation3DIntegral(BasePFSimulation):
@@ -28,15 +29,11 @@ class Simulation3DIntegral(BasePFSimulation):
         "Magnetic Susceptibility (SI)", default=1.0
     )
 
-    modelType = properties.StringChoice(
-        "Type of magnetization model",
-        choices=["susceptibility", "vector"],
-        default="susceptibility",
-    )
-
     is_amplitude_data = properties.Boolean(
         "Whether the supplied data is amplitude data", default=False
     )
+
+    _model_type: str = "scalar"
 
     def __init__(self, mesh, **kwargs):
         super().__init__(mesh, **kwargs)
@@ -54,7 +51,7 @@ class Simulation3DIntegral(BasePFSimulation):
         """
         if getattr(self, "_M", None) is None:
 
-            if self.modelType == "vector":
+            if self.model_type == "vector":
                 self._M = sp.identity(self.nC) * self.survey.source_field.parameters[0]
 
             else:
@@ -80,7 +77,7 @@ class Simulation3DIntegral(BasePFSimulation):
         :parameter
         M: array (3*nC,) or (nC, 3)
         """
-        if self.modelType == "vector":
+        if self.model_type == "vector":
             self._M = sdiag(mkvc(M) * self.survey.source_field.parameters[0])
         else:
             M = M.reshape((-1, 3))
@@ -117,9 +114,34 @@ class Simulation3DIntegral(BasePFSimulation):
         return self._G
 
     @property
+    def model_type(self) -> str:
+        """
+        Define the type of model. Choice of 'scalar' or 'vector' (3-components)
+        """
+        return self._model_type
+
+    @model_type.setter
+    def model_type(self, value: str):
+        if value not in ["scalar", "vector"]:
+            raise ValueError(
+                "'model_type' value should be a string: 'scalar' or 'vector'."
+                + f"Value {value} of type {type(value)} provided."
+            )
+
+        self._model_type = value
+
+    modelType = deprecate_property(
+        model_type,
+        "modelType",
+        new_name="model_type",
+        removal_version="0.16.0",
+        error=True,
+    )
+
+    @property
     def nD(self):
         """
-            Number of data
+        Number of data
         """
         self._nD = self.survey.receiver_locations.shape[0]
 
@@ -140,12 +162,12 @@ class Simulation3DIntegral(BasePFSimulation):
 
     def getJtJdiag(self, m, W=None):
         """
-            Return the diagonal of JtJ
+        Return the diagonal of JtJ
         """
         self.model = m
 
         if W is None:
-            W = np.ones(self.nD)
+            W = np.ones(self.survey.nD)
         else:
             W = W.diagonal() ** 2
         if getattr(self, "_gtg_diagonal", None) is None:
@@ -194,7 +216,7 @@ class Simulation3DIntegral(BasePFSimulation):
     @property
     def fieldDeriv(self):
 
-        if getattr(self, 'chi', None) is None:
+        if getattr(self, "chi", None) is None:
             self.model = np.zeros(self.chiMap.nP)
 
         if getattr(self, "_fieldDeriv", None) is None:
@@ -208,7 +230,7 @@ class Simulation3DIntegral(BasePFSimulation):
     @classmethod
     def normalized_fields(cls, fields):
         """
-            Return the normalized B fields
+        Return the normalized B fields
         """
 
         # Get field amplitude
@@ -219,7 +241,7 @@ class Simulation3DIntegral(BasePFSimulation):
     @classmethod
     def compute_amplitude(cls, b_xyz):
         """
-            Compute amplitude of the magnetic field
+        Compute amplitude of the magnetic field
         """
 
         amplitude = np.linalg.norm(b_xyz.reshape((3, -1), order="F"), axis=0)
@@ -228,25 +250,25 @@ class Simulation3DIntegral(BasePFSimulation):
 
     def evaluate_integral(self, receiver_location, components):
         """
-            Load in the active nodes of a tensor mesh and computes the magnetic
-            forward relation between a cuboid and a given observation
-            location outside the Earth [obsx, obsy, obsz]
+        Load in the active nodes of a tensor mesh and computes the magnetic
+        forward relation between a cuboid and a given observation
+        location outside the Earth [obsx, obsy, obsz]
 
-            INPUT:
-            receiver_location:  [obsx, obsy, obsz] nC x 3 Array
+        INPUT:
+        receiver_location:  [obsx, obsy, obsz] nC x 3 Array
 
-            components: list[str]
-                List of magnetic components chosen from:
-                'bx', 'by', 'bz', 'bxx', 'bxy', 'bxz', 'byy', 'byz', 'bzz'
+        components: list[str]
+            List of magnetic components chosen from:
+            'bx', 'by', 'bz', 'bxx', 'bxy', 'bxz', 'byy', 'byz', 'bzz'
 
-            OUTPUT:
-            Tx = [Txx Txy Txz]
-            Ty = [Tyx Tyy Tyz]
-            Tz = [Tzx Tzy Tzz]
+        OUTPUT:
+        Tx = [Txx Txy Txz]
+        Ty = [Tyx Tyy Tyz]
+        Tz = [Tzx Tzy Tzz]
         """
         # TODO: This should probably be converted to C
-        tol1 = 1e-10    # Tolerance 1 for numerical stability over nodes and edges
-        tol2 = 1e-4     # Tolerance 2 for numerical stability over nodes and edges
+        tol1 = 1e-10  # Tolerance 1 for numerical stability over nodes and edges
+        tol2 = 1e-4  # Tolerance 2 for numerical stability over nodes and edges
 
         rows = {component: np.zeros(3 * self.Xn.shape[0]) for component in components}
 
@@ -254,24 +276,28 @@ class Simulation3DIntegral(BasePFSimulation):
         nC = self.Xn.shape[0]
 
         # base cell dimensions
-        min_hx, min_hy, min_hz = self.mesh.hx.min(), self.mesh.hy.min(), self.mesh.hz.min()
+        min_hx, min_hy, min_hz = (
+            self.mesh.hx.min(),
+            self.mesh.hy.min(),
+            self.mesh.hz.min(),
+        )
 
         # comp. pos. differences for tne, bsw nodes. Adjust if location within
         # tolerance of a node or edge
         dz2 = self.Zn[:, 1] - receiver_location[2]
-        dz2[np.abs(dz2)/min_hz < tol2] = tol2 * min_hz
+        dz2[np.abs(dz2) / min_hz < tol2] = tol2 * min_hz
         dz1 = self.Zn[:, 0] - receiver_location[2]
-        dz1[np.abs(dz1)/min_hz < tol2] = tol2 * min_hz
+        dz1[np.abs(dz1) / min_hz < tol2] = tol2 * min_hz
 
         dy2 = self.Yn[:, 1] - receiver_location[1]
-        dy2[np.abs(dy2)/min_hy < tol2] = tol2 * min_hy
+        dy2[np.abs(dy2) / min_hy < tol2] = tol2 * min_hy
         dy1 = self.Yn[:, 0] - receiver_location[1]
-        dy1[np.abs(dy1)/min_hy < tol2] = tol2 * min_hy
+        dy1[np.abs(dy1) / min_hy < tol2] = tol2 * min_hy
 
         dx2 = self.Xn[:, 1] - receiver_location[0]
-        dx2[np.abs(dx2)/min_hx < tol2] = tol2 * min_hx
+        dx2[np.abs(dx2) / min_hx < tol2] = tol2 * min_hx
         dx1 = self.Xn[:, 0] - receiver_location[0]
-        dx1[np.abs(dx1)/min_hx < tol2] = tol2 * min_hx
+        dx1[np.abs(dx1) / min_hx < tol2] = tol2 * min_hx
 
         # comp. squared diff
         dx2dx2 = dx2 ** 2.0
@@ -655,7 +681,7 @@ class Simulation3DIntegral(BasePFSimulation):
 
 class Simulation3DDifferential(BaseSimulation):
     """
-        Secondary field approach using differential equations!
+    Secondary field approach using differential equations!
     """
 
     # surveyPair = MAG.BaseMagSurvey
@@ -675,7 +701,7 @@ class Simulation3DDifferential(BaseSimulation):
         Pbc, Pin, self._Pout = self.mesh.getBCProjWF("neumann", discretization="CC")
 
         Dface = self.mesh.faceDiv
-        Mc = sdiag(self.mesh.cell_volumes)
+        Mc = sdiag(self.mesh.vol)
         self._Div = Mc * Dface * Pin.T * Pin
 
     @property
@@ -745,15 +771,15 @@ class Simulation3DDifferential(BaseSimulation):
 
     def fields(self, m):
         """
-            Return magnetic potential (u) and flux (B)
-            u: defined on the cell center [nC x 1]
-            B: defined on the cell center [nG x 1]
+        Return magnetic potential (u) and flux (B)
+        u: defined on the cell center [nC x 1]
+        B: defined on the cell center [nG x 1]
 
-            After we compute u, then we update B.
+        After we compute u, then we update B.
 
-            .. math ::
+        .. math ::
 
-                \mathbf{B}_s = (\MfMui)^{-1}\mathbf{M}^f_{\mu_0^{-1}}\mathbf{B}_0-\mathbf{B}_0 -(\MfMui)^{-1}\Div^T \mathbf{u}
+            \mathbf{B}_s = (\MfMui)^{-1}\mathbf{M}^f_{\mu_0^{-1}}\mathbf{B}_0-\mathbf{B}_0 -(\MfMui)^{-1}\Div^T \mathbf{u}
 
         """
         self.makeMassMatrices(m)
@@ -849,7 +875,7 @@ class Simulation3DDifferential(BaseSimulation):
         dmu_dm = self.muDeriv
         # dchidmu = sdiag(1 / mu_0 * np.ones(self.mesh.nC))
 
-        vol = self.mesh.cell_volumes
+        vol = self.mesh.vol
         Div = self._Div
         P = self.survey.projectFieldsDeriv(B)  # Projection matrix
         B0 = self.getB0()
@@ -925,7 +951,7 @@ class Simulation3DDifferential(BaseSimulation):
         dmu_dm = self.mapping.deriv(m)
         # dchidmu = sdiag(1 / mu_0 * np.ones(self.mesh.nC))
 
-        vol = self.mesh.cell_volumes
+        vol = self.mesh.vol
         Div = self._Div
         Dface = self.mesh.faceDiv
         P = self.survey.projectFieldsDeriv(B)  # Projection matrix
@@ -1008,20 +1034,20 @@ class Simulation3DDifferential(BaseSimulation):
 
     def projectFields(self, u):
         """
-            This function projects the fields onto the data space.
-            Especially, here for we use total magnetic intensity (TMI) data,
-            which is common in practice.
-            First we project our B on to data location
+        This function projects the fields onto the data space.
+        Especially, here for we use total magnetic intensity (TMI) data,
+        which is common in practice.
+        First we project our B on to data location
 
-            .. math::
+        .. math::
 
-                \mathbf{B}_{rec} = \mathbf{P} \mathbf{B}
+            \mathbf{B}_{rec} = \mathbf{P} \mathbf{B}
 
-            then we take the dot product between B and b_0
+        then we take the dot product between B and b_0
 
-            .. math ::
+        .. math ::
 
-                \\text{TMI} = \\vec{B}_s \cdot \hat{B}_0
+            \\text{TMI} = \\vec{B}_s \cdot \hat{B}_0
 
         """
         # TODO: There can be some different tyes of data like |B| or B
@@ -1052,13 +1078,13 @@ class Simulation3DDifferential(BaseSimulation):
     @utils.count
     def projectFieldsDeriv(self, B):
         """
-            This function projects the fields onto the data space.
+        This function projects the fields onto the data space.
 
-            .. math::
+        .. math::
 
-                \\frac{\partial d_\\text{pred}}{\partial \mathbf{B}} = \mathbf{P}
+            \\frac{\partial d_\\text{pred}}{\partial \mathbf{B}} = \mathbf{P}
 
-            Especially, this function is for TMI data type
+        Especially, this function is for TMI data type
         """
 
         components = self.survey.components
@@ -1096,7 +1122,7 @@ class Simulation3DDifferential(BaseSimulation):
 
 def MagneticsDiffSecondaryInv(mesh, model, data, **kwargs):
     """
-        Inversion module for MagneticsDiffSecondary
+    Inversion module for MagneticsDiffSecondary
 
     """
     from SimPEG import Optimization, Regularization, Parameters, ObjFunction, Inversion
@@ -1124,11 +1150,11 @@ def MagneticsDiffSecondaryInv(mesh, model, data, **kwargs):
 ############
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class MagneticIntegral(Simulation3DIntegral):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Problem3D_Diff(Simulation3DDifferential):
     pass

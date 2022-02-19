@@ -26,7 +26,11 @@ class BaseRx(survey.BaseRx):
     )
 
     projComp = deprecate_property(
-        orientation, "projComp", new_name="orientation", removal_version="0.15.0"
+        orientation,
+        "projComp",
+        new_name="orientation",
+        removal_version="0.16.0",
+        error=True,
     )
 
     def __init__(self, locations, orientation=None, component=None, **kwargs):
@@ -93,13 +97,16 @@ class BaseRx(survey.BaseRx):
             PTv_real = P.T * v
 
             if self.component == "imag":
-                PTv = -1j * PTv_real
+                PTv = 1j * PTv_real
             elif self.component == "real":
                 PTv = PTv_real.astype(complex)
             else:
                 raise NotImplementedError("must be real or imag")
 
             df_duT, df_dmT = df_dmFun(src, None, PTv, adjoint=True)
+            if self.component == "imag":  # conjugate
+                df_duT *= -1
+                df_dmT *= -1
 
             return df_duT, df_dmT
 
@@ -128,7 +135,7 @@ class PointMagneticFluxDensity(BaseRx):
     """
 
     def __init__(self, locations, orientation="x", component="real"):
-        self.projField = "h"
+        self.projField = "b"
         super(PointMagneticFluxDensity, self).__init__(
             locations, orientation, component
         )
@@ -181,26 +188,26 @@ class PointCurrentDensity(BaseRx):
 ############
 # Deprecated
 ############
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Point_e(PointElectricField):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Point_b(PointMagneticFluxDensity):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Point_bSecondary(PointMagneticFluxDensitySecondary):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Point_h(PointMagneticField):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Point_j(PointCurrentDensity):
     pass

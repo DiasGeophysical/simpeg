@@ -109,7 +109,7 @@ def run(plotIt=True):
     nza = 10
     # cell size, number of core cells, number of padding cells in the
     # x-direction
-    ncz, npadzu, npadzd = int(np.ceil(np.diff(casing_z)[0] / csz)) + 10, 68, 68
+    ncz, npadzu, npadzd = np.int(np.ceil(np.diff(casing_z)[0] / csz)) + 10, 68, 68
     # vector of cell widths in the z-direction
     hz = utils.meshTensor([(csz, npadzd, -1.3), (csz, ncz), (csz, npadzu, 1.3)])
 
@@ -230,7 +230,7 @@ def run(plotIt=True):
     # ------------ Problem and Survey ---------------
     survey = FDEM.Survey(sg_p + dg_p)
     problem = FDEM.Simulation3DMagneticField(
-        mesh, survey=survey, sigmaMap=maps.IdentityMap(mesh), Solver=Solver
+        mesh, survey=survey, sigmaMap=maps.IdentityMap(mesh), solver=Solver
     )
 
     # ------------- Solve ---------------------------

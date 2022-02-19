@@ -48,14 +48,28 @@ def getFDEMProblem(fdemType, comp, SrcList, freq, useMu=False, verbose=False):
 
     for SrcType in SrcList:
         if SrcType == "MagDipole":
-            Src.append(fdem.Src.MagDipole([rx0], freq=freq, loc=np.r_[0.0, 0.0, 0.0]))
+            Src.append(
+                fdem.Src.MagDipole([rx0], frequency=freq, location=np.r_[0.0, 0.0, 0.0])
+            )
         elif SrcType == "MagDipole_Bfield":
             Src.append(
-                fdem.Src.MagDipole_Bfield([rx0], freq=freq, loc=np.r_[0.0, 0.0, 0.0])
+                fdem.Src.MagDipole_Bfield(
+                    [rx0], frequency=freq, location=np.r_[0.0, 0.0, 0.0]
+                )
             )
         elif SrcType == "CircularLoop":
             Src.append(
-                fdem.Src.CircularLoop([rx0], freq=freq, loc=np.r_[0.0, 0.0, 0.0])
+                fdem.Src.CircularLoop(
+                    [rx0], frequency=freq, location=np.r_[0.0, 0.0, 0.0]
+                )
+            )
+        elif SrcType == "LineCurrent":
+            Src.append(
+                fdem.Src.LineCurrent(
+                    [rx0],
+                    frequency=freq,
+                    location=np.array([[0.0, 0.0, 0.0], [20.0, 0.0, 0.0]]),
+                )
             )
         elif SrcType == "RawVec":
             if fdemType == "e" or fdemType == "b":
@@ -93,31 +107,32 @@ def getFDEMProblem(fdemType, comp, SrcList, freq, useMu=False, verbose=False):
 
     if fdemType == "e":
         survey = fdem.Survey(Src)
-        prb = fdem.Simulation3DElectricField(mesh, sigmaMap=mapping)
+        prb = fdem.Simulation3DElectricField(mesh, survey=survey, sigmaMap=mapping)
 
     elif fdemType == "b":
         survey = fdem.Survey(Src)
-        prb = fdem.Simulation3DMagneticFluxDensity(mesh, sigmaMap=mapping)
+        prb = fdem.Simulation3DMagneticFluxDensity(
+            mesh, survey=survey, sigmaMap=mapping
+        )
 
     elif fdemType == "j":
         survey = fdem.Survey(Src)
-        prb = fdem.Simulation3DCurrentDensity(mesh, sigmaMap=mapping)
+        prb = fdem.Simulation3DCurrentDensity(mesh, survey=survey, sigmaMap=mapping)
 
     elif fdemType == "h":
         survey = fdem.Survey(Src)
-        prb = fdem.Simulation3DMagneticField(mesh, sigmaMap=mapping)
+        prb = fdem.Simulation3DMagneticField(mesh, survey=survey, sigmaMap=mapping)
 
     else:
         raise NotImplementedError()
-    prb.pair(survey)
 
     try:
         from pymatsolver import Pardiso
 
-        prb.Solver = Pardiso
+        prb.solver = Pardiso
     except ImportError:
-        prb.Solver = SolverLU
-    # prb.solverOpts = dict(check_accuracy=True)
+        prb.solver = SolverLU
+    # prb.solver_opts = dict(check_accuracy=True)
 
     return prb
 

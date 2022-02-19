@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 # Functions to import and export MT EDI files.
-from ....utils import mkvc
+from .... import mkvc
 from scipy.constants import mu_0
 from numpy.lib import recfunctions as recFunc
 from .data_utils import rec_to_ndarr
@@ -9,7 +9,6 @@ from .data_utils import rec_to_ndarr
 # Import modules
 import numpy as np
 import os, sys, re
-import utm
 
 
 class EDIimporter:
@@ -137,31 +136,30 @@ class EDIimporter:
     # obj.data(nOutData+1:nOutData+length(TEMP.data),:) = TEMP.data;
     def _transfromPoints(self, longD, latD):
         # Import the coordinate projections
-        # try:
-        #     import osr
-        # except ImportError as e:
-        #     print(
-        #         (
-        #             "Could not import osr, missing the gdal"
-        #             + "package\nCan not project coordinates"
-        #         )
-        #     )
-        #     raise e
-        # # Coordinates convertor
-        # if self._2out is None:
-        #     src = osr.SpatialReference()
-        #     src.ImportFromEPSG(4326)
-        #     out = osr.SpatialReference()
-        #     if self._outEPSG is None:
-        #         # Find the UTM EPSG number
-        #         Nnr = 700 if latD < 0.0 else 600
-        #         utmZ = int(1 + (longD + 180.0) / 6.0)
-        #         self._outEPSG = 32000 + Nnr + utmZ
-        #     out.ImportFromEPSG(self._outEPSG)
-        #     self._2out = osr.CoordinateTransformation(src, out)
-        # # Return the transfrom
-        # return self._2out.TransformPoint(longD, latD)
-        return utm.from_latlon(latD, longD)
+        try:
+            import osr
+        except ImportError as e:
+            print(
+                (
+                    "Could not import osr, missing the gdal"
+                    + "package\nCan not project coordinates"
+                )
+            )
+            raise e
+        # Coordinates convertor
+        if self._2out is None:
+            src = osr.SpatialReference()
+            src.ImportFromEPSG(4326)
+            out = osr.SpatialReference()
+            if self._outEPSG is None:
+                # Find the UTM EPSG number
+                Nnr = 700 if latD < 0.0 else 600
+                utmZ = int(1 + (longD + 180.0) / 6.0)
+                self._outEPSG = 32000 + Nnr + utmZ
+            out.ImportFromEPSG(self._outEPSG)
+            self._2out = osr.CoordinateTransformation(src, out)
+        # Return the transfrom
+        return self._2out.TransformPoint(longD, latD)
 
 
 # Hidden functions
@@ -213,13 +211,7 @@ def _findEDIcomp(comp, fileLines, dt=float):
         (st, nr) for nr, st in enumerate(fileLines) if re.search(comp, st)
     ][0]
     # Extract the data
-    if 'NFREQ' in headLine:
-        breakup = headLine.split("=")
-        breakup2 = breakup[1].split()[0]
-        # print(breakup, breakup2)
-        nrVec = int(breakup2)
-    else:
-        nrVec = int(headLine.split("//")[-1])
+    nrVec = int(headLine.split("//")[-1])
     c = 0
     dataList = []
     while c < nrVec:

@@ -21,6 +21,6 @@ class SourceField(BaseSrc):
         )
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class SrcField(SourceField):
     pass

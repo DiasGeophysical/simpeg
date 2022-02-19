@@ -46,7 +46,7 @@ class IdentityMap(properties.HasProperties):
             if isinstance(nP, string_types):
                 assert nP == "*", "nP must be an integer or '*', not {}".format(nP)
             assert isinstance(
-                nP, integer_types + (int,)
+                nP, integer_types + (np.int64,)
             ), "Number of parameters must be an integer. Not `{}`.".format(type(nP))
             nP = int(nP)
         elif mesh is not None:
@@ -138,7 +138,6 @@ class IdentityMap(properties.HasProperties):
         :rtype: bool
         :return: passed the test?
 
-
         """
         print("Testing {0!s}".format(str(self)))
         if m is None:
@@ -161,7 +160,6 @@ class IdentityMap(properties.HasProperties):
                        :meth:`discretize.tests.checkDerivative`
         :rtype: bool
         :return: passed the test?
-
 
         """
         print("Testing {0!s}".format(self))
@@ -1253,12 +1251,10 @@ class Weighting(IdentityMap):
     def __init__(self, mesh=None, nP=None, weights=None, **kwargs):
 
         if "nC" in kwargs:
-            warnings.warn(
-                "`nC` is deprecated. Use `nP` to set the number of model "
-                "parameters, This option will be removed in version 0.16.0 of SimPEG",
-                FutureWarning,
+            raise TypeError(
+                "`nC` has been removed. Use `nP` to set the number of model "
+                "parameters."
             )
-            nP = nC
 
         super(Weighting, self).__init__(mesh=mesh, nP=nP, **kwargs)
 
@@ -3320,7 +3316,6 @@ class ParametricBlockInLayer(ParametricLayer):
 class TileMap(IdentityMap):
     """
     Mapping for tiled inversion.
-
     Uses volume averaging to map a model defined on a global mesh to the
     local mesh. Everycell in the local mesh must also be in the global mesh.
     """
@@ -3568,36 +3563,36 @@ class PolynomialPetroClusterMap(IdentityMap):
 ###############################################################################
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class FullMap(SurjectFull):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Vertical1DMap(SurjectVertical1D):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class Map2Dto3D(Surject2Dto3D):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class ActiveCells(InjectActiveCells):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class CircleMap(ParametricCircleMap):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class PolyMap(ParametricPolyMap):
     pass
 
 
-@deprecate_class(removal_version="0.15.0")
+@deprecate_class(removal_version="0.16.0", error=True)
 class SplineMap(ParametricSplineMap):
     pass

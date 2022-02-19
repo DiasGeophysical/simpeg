@@ -37,7 +37,7 @@ class Dipole(BaseSrc):
         survey.SourceLocationArray("location of electrode"),
     )
     loc = deprecate_property(
-        location, "loc", new_name="location", removal_version="0.15.0"
+        location, "loc", new_name="location", removal_version="0.16.0", error=True
     )
 
     def __init__(
@@ -51,20 +51,16 @@ class Dipole(BaseSrc):
         # Check for old keywords
         if "locationA" in kwargs.keys():
             location_a = kwargs.pop("locationA")
-            warnings.warn(
-                "The locationA property has been deprecated. Please set the "
-                "location_a property instead. This will be removed in version"
-                " 0.15.0 of SimPEG",
-                DeprecationWarning,
+            raise TypeError(
+                "The locationA property has been removed. Please set the "
+                "location_a property instead.",
             )
 
         if "locationB" in kwargs.keys():
             location_b = kwargs.pop("locationB")
-            warnings.warn(
-                "The locationB property has been deprecated. Please set the "
-                "location_b property instead. This will be removed in version"
-                " 0.15.0 of SimPEG",
-                DeprecationWarning,
+            raise TypeError(
+                "The locationB property has been removed. Please set the "
+                "location_b property instead.",
             )
 
         # if location_a set, then use location_a, location_b
@@ -101,6 +97,11 @@ class Dipole(BaseSrc):
         # instantiate
         super(Dipole, self).__init__(receiver_list, **kwargs)
         self.location = location
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(" f"a: {self.location_a}; b: {self.location_b})"
+        )
 
     @property
     def location_a(self):
@@ -147,3 +148,13 @@ class Pole(BaseSrc):
                 q = sim.mesh.getInterpolationMat(self.location, locType="N")
                 self._q = self.current * q.toarray()
             return self._q
+
+    @property
+    def location_a(self):
+        """Locations of the A electrode"""
+        return self.location
+
+    @property
+    def location_b(self):
+        """Location of the B electrode"""
+        return np.nan * np.ones_like(self.location)

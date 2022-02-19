@@ -31,7 +31,7 @@ with open("README.rst") as f:
 
 setup(
     name="SimPEG",
-    version="0.15.1",
+    version="0.16.0",
     packages=find_packages(exclude=["tests*", "examples*", "tutorials*"]),
     install_requires=[
         "numpy>=1.7",
@@ -45,7 +45,6 @@ setup(
         "geoana>=0.0.4",
         "empymod",
         "pandas",
-        "geoh5py"
     ],
     author="Rowan Cockett",
     author_email="rowanc1@gmail.com",

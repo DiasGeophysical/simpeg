@@ -18,9 +18,7 @@ from .survey import Survey
 
 
 class IO(properties.HasProperties):
-    """
-
-    """
+    """"""
 
     # Survey
     survey_layout = properties.StringChoice(
@@ -299,12 +297,18 @@ class IO(properties.HasProperties):
         Compute geometric factor, G, using locational informaition
         in survey object
         """
-        G = geometric_factor(
-            survey, space_type=self.space_type
-        )
+        G = geometric_factor(survey, space_type=self.space_type)
         return G
 
-    def from_ambn_locations_to_survey(
+    def from_ambn_locations_to_survey(self, *args, **kwargs):
+        warnings.warn(
+            "from_ambn_locations_to_survey has been renamed to "
+            "from_abmn_locations_to_survey. It will be removed in a future version 0.17.0 of simpeg",
+            FutureWarning,
+        )
+        return self.from_abmn_locations_to_survey(*args, **kwargs)
+
+    def from_abmn_locations_to_survey(
         self,
         a_locations,
         b_locations,
@@ -349,7 +353,7 @@ class IO(properties.HasProperties):
 
         if self.survey_layout == "SURFACE":
             # 2D locations
-            srcLists = []
+            source_lists = []
             sort_inds = []
             for iSrc in range(nSrc):
                 inds = uniqSrc[2] == iSrc
@@ -376,14 +380,14 @@ class IO(properties.HasProperties):
                 elif survey_type in ["pole-dipole", "pole-pole"]:
                     src = Src.Pole([rx], locA)
 
-                srcLists.append(src)
+                source_lists.append(src)
 
             self.sort_inds = np.hstack(sort_inds)
 
             if dimension == 2:
-                survey = Survey(srcLists)
+                survey = Survey(source_lists)
             elif dimension == 3:
-                survey = Survey(srcLists)
+                survey = Survey(source_lists)
             else:
                 raise NotImplementedError()
 
@@ -712,7 +716,7 @@ class IO(properties.HasProperties):
         orientation="vertical",
     ):
         """
-            Plot 2D pseudo-section for DC-IP data
+        Plot 2D pseudo-section for DC-IP data
         """
         matplotlib.rcParams["font.size"] = 12
 
@@ -857,7 +861,7 @@ class IO(properties.HasProperties):
             else:
                 survey_type = "dipole-dipole"
 
-        survey = self.from_ambn_locations_to_survey(
+        survey = self.from_abmn_locations_to_survey(
             a, b, m, n, survey_type=survey_type, data_dc=voltage
         )
         survey.dobs = voltage[self.sort_inds]
@@ -868,12 +872,9 @@ class IO(properties.HasProperties):
     def write_to_csv(self, fname, dobs, standard_deviation=None, **kwargs):
         uncert = kwargs.pop("uncertainty", None)
         if uncert is not None:
-            warnings.warn(
-                "The uncertainty option has been deprecated and will be removed"
-                " in SimPEG 0.15.0. Please use standard_deviation.",
-                DeprecationWarning,
+            raise TypeError(
+                "The uncertainty option has been removed, please use standard_deviation."
             )
-            standard_deviation = uncert
 
         if standard_deviation is None:
             standard_deviation = np.ones(dobs.size) * np.nan
@@ -922,7 +923,7 @@ class IO(properties.HasProperties):
             else:
                 rx_type = "dipole"
             survey_type = src_type + rx_type
-            survey = self.from_ambn_locations_to_survey(
+            survey = self.from_abmn_locations_to_survey(
                 a_locations,
                 b_locations,
                 m_locations,

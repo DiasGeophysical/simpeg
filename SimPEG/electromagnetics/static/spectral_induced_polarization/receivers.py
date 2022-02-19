@@ -44,11 +44,11 @@ class BaseRx(BaseTimeRx):
 
     def getTimeP(self, timesall):
         """
-            Returns the time projection matrix.
+        Returns the time projection matrix.
 
-            .. note::
+        .. note::
 
-                This is not stored in memory, but is created on demand.
+            This is not stored in memory, but is created on demand.
         """
         time_inds = np.in1d(timesall, self.times)
         return time_inds
@@ -86,20 +86,16 @@ class Dipole(BaseRx):
         # Check for old keywords
         if "locationsM" in kwargs.keys():
             locations_m = kwargs.pop("locationsM")
-            warnings.warn(
-                "The locationsM property has been deprecated. Please set the "
-                "locations_m property instead. This will be removed in version"
-                " 0.15.0 of SimPEG",
-                DeprecationWarning,
+            raise TypeError(
+                "The locationsM property has been removed. Please set the "
+                "locations_m property instead."
             )
 
         if "locationsN" in kwargs.keys():
             locations_n = kwargs.pop("locationsN")
-            warnings.warn(
-                "The locationsN property has been deprecated. Please set the "
-                "locations_n property instead. This will be removed in version"
-                " 0.15.0 of SimPEG",
-                DeprecationWarning,
+            raise TypeError(
+                "The locationsN property has been removed. Please set the "
+                "locations_n property instead."
             )
 
         # if locations_m set, then use locations_m, locations_n
@@ -155,7 +151,9 @@ class Dipole(BaseRx):
         """Number of data in the receiver."""
         return self.locations[0].shape[0]
 
-    nRx = deprecate_property(nD, "nRx", new_name="nD", removal_version="0.15.0")
+    nRx = deprecate_property(
+        nD, "nRx", new_name="nD", removal_version="0.16.0", error=True
+    )
 
     def getP(self, mesh, Gloc):
         if mesh in self._Ps:
@@ -187,7 +185,9 @@ class Pole(BaseRx):
         """Number of data in the receiver."""
         return self.locations.shape[0]
 
-    nRx = deprecate_property(nD, "nRx", new_name="nD", removal_version="0.15.0")
+    nRx = deprecate_property(
+        nD, "nRx", new_name="nD", removal_version="0.16.0", error=True
+    )
 
     def getP(self, mesh, Gloc):
         if mesh in self._Ps:

@@ -6,7 +6,8 @@ from __future__ import division
 import numpy as np
 import scipy.sparse as sp
 from six import integer_types
-from dask.distributed import Client, get_client
+import warnings
+
 from discretize.tests import checkDerivative
 
 from .maps import IdentityMap
@@ -35,8 +36,6 @@ class BaseObjectiveFunction(BaseSimPEG):
     _hasFields = False  #: should we have the option to store fields
 
     _nP = None  #: number of parameters
-    _client = None
-    _workers = None
 
     def __init__(self, nP=None, **kwargs):
         if nP is not None:
@@ -141,11 +140,12 @@ class BaseObjectiveFunction(BaseSimPEG):
                 x = np.random.randn(self.nP)
 
         v = x + 0.1 * np.random.rand(len(x))
+        expectedOrder = kwargs.pop("expectedOrder", 1)
         return checkDerivative(
             lambda m: [self.deriv(m).dot(v), self.deriv2(m, v=v)],
             x,
             num=num,
-            expectedOrder=1,
+            expectedOrder=expectedOrder,
             plotIt=plotIt,
             **kwargs
         )
@@ -347,9 +347,13 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
                 continue
             else:
                 if f is not None and objfct._hasFields:
-                    g += multiplier * objfct.deriv(m, f=f[i])
+                    aux = objfct.deriv(m, f=f[i])
+                    if not isinstance(aux, Zero):
+                        g += multiplier * aux
                 else:
-                    g += multiplier * objfct.deriv(m)
+                    aux = objfct.deriv(m)
+                    if not isinstance(aux, Zero):
+                        g += multiplier * aux
         return g
 
     def deriv2(self, m, v=None, f=None):
