@@ -123,10 +123,20 @@ def worker_request(outputs, simlite, host, index):
                             # assign the data
                             outputs[index] = np.asarray(server_response["deriv"])
                             listening = False
+
+                        elif "saved_pred" in data.decode('utf-8'):  
+               
+                            server_response = json.loads(data.decode('utf-8'))
+
+                            # assign the data
+                            outputs[index] = np.asarray(server_response["saved_pred"])
+
+                            listening = False
             
         # close the socket
         s.close()
 
     except Exception as err:
+        print(f"break! {sys.exc_info()[0]} Error message: {err}")
         logging.error(f"break! {sys.exc_info()[0]} Error message: {err}")
         logging.error("connection to worker failed")
